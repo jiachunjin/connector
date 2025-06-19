@@ -1,0 +1,19 @@
+machine: "g3" # [g3, ks]
+train:
+  root: 
+  exp_name: &exp_name "learn_to_use"
+  wandb_proj: *exp_name
+  output_dir: "0612_decoder"
+  logging_dir: "logs"
+  mixed_precision: "bf16"
+  gradient_accumulation_steps: 1
+  report_to: "no"
+
+decoder:
+  type: "vit_pixel_decoder"
+  hidden_size: 1024
+  depth: 16
+  num_heads: 16
+  patch_size: 16
+  grid_size: 24
+  input_dim: 1024
