@@ -1,14 +1,14 @@
 machine: "ks" # [g3, ks]
 train:
   root:
-  resume_path_decoder:
+  resume_path_decoder: "/data/phd/jinjiachun/experiment/learn_to_use/Decoder-decoder-500k"
   skipped_keys:
-  resume_path_recloss:
+  resume_path_recloss: "/data/phd/jinjiachun/experiment/learn_to_use/Loss-decoder-500k"
   global_step:
 
   exp_name: &exp_name "learn_to_use"
   wandb_proj: *exp_name
-  output_dir: "0612_decoder"
+  output_dir: "0619_decoder"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
