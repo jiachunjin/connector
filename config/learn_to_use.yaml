@@ -1,6 +1,11 @@
 machine: "g3" # [g3, ks]
 train:
-  root: 
+  root:
+  resume_path_decoder:
+  skipped_keys:
+  resume_path_recloss:
+  global_step:
+
   exp_name: &exp_name "learn_to_use"
   wandb_proj: *exp_name
   output_dir: "0612_decoder"
@@ -8,6 +13,11 @@ train:
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
   report_to: "no"
+
+  lr: 1e-4
+  lr_disc: 1e-5
+  num_iter: 500000
+  save_every: 10000
 
 decoder:
   type: "vit_pixel_decoder"
@@ -17,3 +27,21 @@ decoder:
   patch_size: 16
   grid_size: 24
   input_dim: 1024
+
+rec_loss:
+  perceptual_loss_name: "lpips-convnext_s-1.0-0.1"
+  rec_weight: 1.0
+  perceptual_weight: 1.1
+  discriminator_weight: 0.1
+  lecam_regularization_weight: 0.001
+
+  discriminator_factor: 1.0
+  discriminator_start_iter: 0
+
+data:
+  name: "imagenet_wds"
+  train_path:
+  siglip_preprocess: false
+  batch_size: 16
+  num_workers: 4
+  img_size: 384
