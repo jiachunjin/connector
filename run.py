@@ -1,4 +1,5 @@
 import os
+import argparse
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration
 from omegaconf import OmegaConf
@@ -25,8 +26,8 @@ def get_accelerator(config):
 
     return accelerator, output_dir
 
-def main():
-    config = OmegaConf.load("config/learn_to_use.yaml")
+def main(args):
+    config = OmegaConf.load(args.config)
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
     accelerator.print(config)
@@ -104,21 +105,70 @@ def main():
         print(f"extractor dtype: {next(extractor.parameters()).dtype}")
         print(f"Accelerator mixed precision: {accelerator.mixed_precision}")
 
-    # while not training_done:
-    for batch in dataloader:
-        with accelerator.accumulate([decoder, rec_loss]):
-            decoder.train()
-            rec_loss.train()
-            x = batch["pixel_values"]
-            x = x.to(dtype)
-            x = x * 2 - 1
+    while not training_done:
+        for batch in dataloader:
+            with accelerator.accumulate([decoder, rec_loss]):
+                decoder.train()
+                rec_loss.train()
+                x = batch["pixel_values"]
+                x = x.to(dtype)
+                x = x * 2 - 1
 
-            with torch.no_grad():
-                feature = extractor(x).to(dtype)
-            rec = decoder(feature)
+                with torch.no_grad():
+                    feature = extractor(x).to(dtype)
+                rec = decoder(feature)
 
-            print(rec.shape, x.shape)
-            break
+                # ---------- train autoencoder ----------
+                loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
+
+                optimizer.zero_grad()
+                accelerator.backward(loss_rec)
+                if accelerator.sync_gradients:
+                    accelerator.clip_grad_norm_(params_to_learn, 1.0)
+                optimizer.step()
+
+                # ---------- train discriminator ----------
+                loss_disc, loss_disc_dict = rec_loss(x, rec, global_step, "discriminator")
+
+                optimizer_disc.zero_grad()
+                accelerator.backward(loss_disc)
+                if accelerator.sync_gradients:
+                    accelerator.clip_grad_norm_(disc_params, 1.0)
+                optimizer_disc.step()
+
+                if accelerator.sync_gradients:
+                    global_step += 1
+                    progress_bar.update(1)
+
+                    logs = dict(
+                        loss_rec  = accelerator.gather(loss_rec.detach()).mean().item(),
+                        loss_disc = accelerator.gather(loss_disc.detach()).mean().item(),
+                        **loss_rec_dict,
+                        **loss_disc_dict,
+                    )
+                    accelerator.log(logs, step=global_step)
+                    progress_bar.set_postfix(**logs)
+
+            if global_step > 0 and global_step % config.train.save_every == 0 and accelerator.is_main_process:
+                decoder.eval()
+                state_dict = accelerator.unwrap_model(decoder).state_dict()
+                torch.save(state_dict, os.path.join(output_dir, f"Decoder-{config.train.exp_name}-{global_step // 1000}k"))
+
+                state_dict = accelerator.unwrap_model(rec_loss).state_dict()
+                torch.save(state_dict, os.path.join(output_dir, f"Loss-{config.train.exp_name}-{global_step // 1000}k"))
+
+            accelerator.wait_for_everyone()
+
+            if global_step >= config.train.num_iter:
+                training_done = True
+                break
+        epoch += 1
+        accelerator.log({"epoch": epoch}, step=global_step)
+    accelerator.end_training()
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="config/bi_tok.yaml")
+    args = parser.parse_args()
+    main(args)
