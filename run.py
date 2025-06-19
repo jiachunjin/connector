@@ -110,6 +110,11 @@ def main(args):
 
     while not training_done:
         for batch in dataloader:
+            # 检查批次是否为空
+            if batch["pixel_values"].shape[0] == 0:
+                print("跳过空批次")
+                continue
+                
             with accelerator.accumulate([decoder, rec_loss]):
                 decoder.train()
                 rec_loss.train()
