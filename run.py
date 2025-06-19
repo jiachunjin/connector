@@ -12,6 +12,9 @@ from util.misc import process_path_for_different_machine, flatten_dict
 from util.dataloader import get_dataloader
 from janus.models import MultiModalityCausalLM
 
+import wandb
+wandb.login(key="96131f8aede9a09cdcdaecc19c054f804e330d3d")
+
 def get_accelerator(config):
     output_dir = os.path.join(config.root, config.exp_name, config.output_dir)
     os.makedirs(output_dir, exist_ok=True)
