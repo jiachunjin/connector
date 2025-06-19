@@ -4,7 +4,7 @@ train:
   resume_path_decoder: "/data/phd/jinjiachun/experiment/learn_to_use/Decoder-decoder-500k"
   skipped_keys:
   resume_path_recloss: "/data/phd/jinjiachun/experiment/learn_to_use/Loss-decoder-500k"
-  global_step:
+  global_step: 400000
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
@@ -16,8 +16,8 @@ train:
 
   lr: 1e-4
   lr_disc: 1e-5
-  num_iter: 500000
-  save_every: 10000
+  num_iter: 600000
+  save_every: 50
 
 decoder:
   type: "vit_pixel_decoder"
@@ -42,6 +42,6 @@ data:
   name: "imagenet_wds"
   train_path:
   siglip_preprocess: false
-  batch_size: 32
+  batch_size: 48
   num_workers: 4
   img_size: 384
