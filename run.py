@@ -40,13 +40,13 @@ def main(args):
     dataloader = get_dataloader(config.data)
 
     if config.train.resume_path_decoder is not None:
-        ckpt = torch.load(config.train.resume_path_decoder, map_location="cpu")
+        ckpt = torch.load(config.train.resume_path_decoder, map_location="cpu", weights_only=True)
         if config.train.skipped_keys:
             ckpt = {k: v for k, v in ckpt.items() if k not in config.train.skipped_keys}
         m, u = decoder.load_state_dict(ckpt, strict=False)
         accelerator.print(f"Loaded {m} modules and {u} unmatch modules")
     if config.train.resume_path_recloss is not None:
-        ckpt = torch.load(config.train.resume_path_recloss, map_location="cpu")
+        ckpt = torch.load(config.train.resume_path_recloss, map_location="cpu", weights_only=True)
         rec_loss.load_state_dict(ckpt, strict=True)
     
     global_step = config.train.global_step if config.train.global_step is not None else 0

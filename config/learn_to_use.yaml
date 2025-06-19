@@ -6,13 +6,13 @@ train:
   resume_path_recloss: "/data/phd/jinjiachun/experiment/learn_to_use/Loss-decoder-500k"
   global_step:
 
-  exp_name: &exp_name "learn_to_use"
+  exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
   output_dir: "0619_decoder"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
-  report_to: "no"
+  report_to: "wandb"
 
   lr: 1e-4
   lr_disc: 1e-5
