@@ -5,6 +5,7 @@ from omegaconf import OmegaConf
 
 from model.decoder import get_decoder
 from util.misc import process_machine_path
+from janus.models import MultiModalityCausalLM
 
 def get_accelerator(config):
     print(config)
@@ -25,10 +26,12 @@ def main():
     config = OmegaConf.load("config/learn_to_use.yaml")
     config = process_machine_path(config)
     accelerator, output_dir = get_accelerator(config.train)
-    accelerator.wait_for_everyone()
     accelerator.print("Hello, World!")
     decoder = get_decoder(config.decoder)
-    print(decoder)
+    janus = MultiModalityCausalLM.from_pretrained(config.janus_path, trust_remote_code=True)
+    extractor = janus.vision_model
+    num_params = sum(p.numel() for p in extractor.parameters())
+    print(f"Number of parameters: {num_params / 1e6:.2f}M")
 
 if __name__ == "__main__":
     main()
