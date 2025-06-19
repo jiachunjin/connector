@@ -41,13 +41,12 @@ def get_dataloader(config):
             "webdataset",
             data_files = data_files,
             split      = "train",
-            num_proc   = 8,
+            streaming   = True,
         )
         dataloader = DataLoader(
             imagenet_wds_train,
             batch_size  = config.batch_size,
             collate_fn  = collate_fn_imagenet_wds,
-            shuffle     = True,
             num_workers = config.num_workers,
             drop_last   = True,
         )
