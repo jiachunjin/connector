@@ -126,40 +126,40 @@ def main(args):
                     x = x.to(dtype)
                     x = x * 2 - 1
 
-                    # with torch.no_grad():
-                    #     feature = extractor(x).to(dtype)
-                    # rec = decoder(feature)
+                    with torch.no_grad():
+                        feature = extractor(x).to(dtype)
+                    rec = decoder(feature)
 
-                    # # ---------- train autoencoder ----------
-                    # loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
+                    # ---------- train autoencoder ----------
+                    loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
 
-                    # optimizer.zero_grad()
-                    # accelerator.backward(loss_rec)
-                    # if accelerator.sync_gradients:
-                    #     accelerator.clip_grad_norm_(params_to_learn, 1.0)
-                    # optimizer.step()
+                    optimizer.zero_grad()
+                    accelerator.backward(loss_rec)
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(params_to_learn, 1.0)
+                    optimizer.step()
 
-                    # # ---------- train discriminator ----------
-                    # loss_disc, loss_disc_dict = rec_loss(x, rec, global_step, "discriminator")
+                    # ---------- train discriminator ----------
+                    loss_disc, loss_disc_dict = rec_loss(x, rec, global_step, "discriminator")
 
-                    # optimizer_disc.zero_grad()
-                    # accelerator.backward(loss_disc)
-                    # if accelerator.sync_gradients:
-                    #     accelerator.clip_grad_norm_(disc_params, 1.0)
-                    # optimizer_disc.step()
+                    optimizer_disc.zero_grad()
+                    accelerator.backward(loss_disc)
+                    if accelerator.sync_gradients:
+                        accelerator.clip_grad_norm_(disc_params, 1.0)
+                    optimizer_disc.step()
 
                     if accelerator.sync_gradients:
                         global_step += 1
                         progress_bar.update(1)
 
-                    #     logs = dict(
-                    #         loss_rec  = accelerator.gather(loss_rec.detach()).mean().item(),
-                    #         loss_disc = accelerator.gather(loss_disc.detach()).mean().item(),
-                    #         **loss_rec_dict,
-                    #         **loss_disc_dict,
-                    #     )
-                    #     accelerator.log(logs, step=global_step)
-                    #     progress_bar.set_postfix(**logs)
+                        logs = dict(
+                            loss_rec  = accelerator.gather(loss_rec.detach()).mean().item(),
+                            loss_disc = accelerator.gather(loss_disc.detach()).mean().item(),
+                            **loss_rec_dict,
+                            **loss_disc_dict,
+                        )
+                        accelerator.log(logs, step=global_step)
+                        progress_bar.set_postfix(**logs)
 
                 if global_step > 0 and global_step % config.train.save_every == 0 and accelerator.is_main_process:
                     decoder.eval()
