@@ -123,7 +123,7 @@ def main(args):
                     decoder.train()
                     rec_loss.train()
                     x = batch["pixel_values"]
-                    x = x.to(dtype)
+                    x = x.to(device=accelerator.device, dtype=dtype)
                     x = x * 2 - 1
 
                     with torch.no_grad():
