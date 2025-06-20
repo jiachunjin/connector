@@ -20,7 +20,7 @@ def safe_load_image(image_data):
             return image_data
         
         # 如果是字节数据，尝试加载
-        if hasattr(image_data, 'read'):
+        if hasattr(image_data, "read"):
             # 重置到开始位置
             image_data.seek(0)
             img = Image.open(image_data)
@@ -53,8 +53,8 @@ def safe_image_transform(img):
             return None
         
         # 转换为RGB模式
-        if safe_img.mode != 'RGB':
-            safe_img = safe_img.convert('RGB')
+        if safe_img.mode != "RGB":
+            safe_img = safe_img.convert("RGB")
         
         return imagenet_transform_train(safe_img)
     except (UnicodeDecodeError, OSError, ValueError) as e:
