@@ -6,8 +6,27 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as pth_transforms
 import PIL
 from PIL import Image
+import sys
+import warnings
 
+# 忽略编码警告
+warnings.filterwarnings('ignore', category=UnicodeWarning)
+
+# 设置环境变量
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["PYTHONIOENCODING"] = "utf-8"
+os.environ["PYTHONUTF8"] = "1"
+
+# 设置默认编码为UTF-8
+if sys.platform.startswith('linux'):
+    import locale
+    try:
+        locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+    except:
+        try:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+        except:
+            pass
 
 # 禁用PIL的EXIF警告
 PIL.Image.MAX_IMAGE_PIXELS = None
@@ -42,6 +61,29 @@ def safe_transform(image):
         print(f"图像处理错误: {e}")
         return None
 
+def safe_convert_label(label):
+    """安全地转换标签"""
+    try:
+        if isinstance(label, str):
+            # 处理可能的编码问题
+            try:
+                return int(label)
+            except (ValueError, UnicodeDecodeError):
+                # 尝试使用不同的编码
+                try:
+                    label_bytes = label.encode('latin-1', errors='replace')
+                    label_str = label_bytes.decode('utf-8', errors='replace')
+                    return int(label_str)
+                except:
+                    return 0  # 默认标签
+        elif isinstance(label, (int, float)):
+            return int(label)
+        else:
+            return int(label)
+    except Exception as e:
+        print(f"标签转换错误: {e}, 使用默认标签0")
+        return 0
+
 def collate_fn_imagenet_wds(batch):
     pixel_values = []
     labels = []
@@ -53,9 +95,14 @@ def collate_fn_imagenet_wds(batch):
             if img is None:
                 continue
                 
-            labels.append(sample["cls"])
+            # 安全地处理标签
+            label = safe_convert_label(sample["cls"])
+            labels.append(label)
             pixel_values.append(img)
             
+        except (UnicodeDecodeError, UnicodeEncodeError) as e:
+            print(f"Unicode编码错误，跳过样本: {e}")
+            continue
         except Exception as e:
             print(f"跳过损坏的样本: {e}")
             continue
@@ -74,18 +121,39 @@ def get_dataloader(config):
     if config.name == "imagenet_wds":
         data_files = glob.glob(os.path.join(config.train_path, "*.tar"))
 
-        imagenet_wds_train = load_dataset(
-            "webdataset",
-            data_files = data_files,
-            split      = "train",
-            streaming   = True,
-        )
+        # 设置tarfile编码
+        import tarfile
+        tarfile.ENCODING = 'utf-8'
+
+        # 添加错误处理和编码设置
+        try:
+            imagenet_wds_train = load_dataset(
+                "webdataset",
+                data_files = data_files,
+                split      = "train",
+                streaming   = True,
+            )
+        except Exception as e:
+            print(f"数据集加载错误: {e}")
+            # 尝试使用不同的编码设置
+            tarfile.ENCODING = 'latin-1'
+            imagenet_wds_train = load_dataset(
+                "webdataset",
+                data_files = data_files,
+                split      = "train",
+                streaming   = True,
+            )
+        
+        # 使用单进程以避免编码问题
+        num_workers = 0
+        
         dataloader = DataLoader(
             imagenet_wds_train,
             batch_size  = config.batch_size,
             collate_fn  = collate_fn_imagenet_wds,
-            num_workers = config.num_workers,
+            num_workers = num_workers,
             drop_last   = True,
+            persistent_workers = False,  # 禁用持久化工作进程
         )
         if getattr(config, "val_path", None) is None:
             return dataloader

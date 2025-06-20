@@ -43,5 +43,5 @@ data:
   train_path:
   siglip_preprocess: false
   batch_size: 45
-  num_workers: 2
+  num_workers: 0
   img_size: 384
