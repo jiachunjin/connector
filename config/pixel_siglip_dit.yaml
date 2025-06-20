@@ -1,2 +1,6 @@
 dit:
-  
+  hidden_size: 1024
+  num_heads: 16
+  depth: 16
+  x_dim: 1024
+  z_dim: 2048

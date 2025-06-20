@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import torchvision.transforms as pth_transforms
 import os
 import warnings
+import io
 from PIL import Image
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -67,7 +68,25 @@ def collate_fn_imagenet_wds(batch):
     labels = []
     try:
         for sample in batch:
-            img = safe_image_transform(sample["jpg"])
+            try:
+                jpg_data = sample["jpg"]
+                if isinstance(jpg_data, bytes):
+                    try:
+                        img = Image.open(io.BytesIO(jpg_data))
+                        img.load()  # Force load to validate
+                    except Exception as e:
+                        print(f"Skipping corrupted image: {e}")
+                        continue
+                elif isinstance(jpg_data, Image.Image):
+                    img = jpg_data
+                else:
+                    print(f"Unexpected image type: {type(jpg_data)}, skipping")
+                    continue
+            except Exception as e:
+                print(f"Error processing sample: {e}")
+                continue
+
+            img = safe_image_transform(img)
             if img is None:
                 continue
             if img.shape[0] != 3:
