@@ -150,14 +150,8 @@ class RobustDataLoader:
                     self.total_batches += 1
                     return batch
                 except StopIteration:
-                    # 如果已经到达数据集末尾，重新开始
-                    print("到达数据集末尾，重新开始迭代")
-                    self._reset_iterator()
-                    if self.iterator is None:
-                        raise RuntimeError("无法重新创建数据加载器迭代器")
-                    batch = next(self.iterator)
-                    self.total_batches += 1
-                    return batch
+                    # 如果已经到达数据集末尾，正常停止
+                    raise StopIteration
                 except Exception as e2:
                     print(f"获取下一个批次时出错: {e2}")
                     # 如果下一个批次也有问题，重置迭代器
@@ -169,14 +163,8 @@ class RobustDataLoader:
                     return batch
             
             except StopIteration:
-                # 数据加载器已经遍历完毕，重新开始
-                print("数据集遍历完毕，重新开始")
-                self._reset_iterator()
-                if self.iterator is None:
-                    raise RuntimeError("无法重新创建数据加载器迭代器")
-                batch = next(self.iterator)
-                self.total_batches += 1
-                return batch
+                # 数据加载器已经遍历完毕，正常停止
+                raise StopIteration
     
     def get_stats(self):
         """获取数据加载统计信息"""
@@ -193,24 +181,13 @@ def get_dataloader(config):
         if not data_files:
             raise ValueError(f"在路径 {config.train_path} 中没有找到 .tar 文件")
 
-        # 添加错误处理和重试机制
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                imagenet_wds_train = load_dataset(
-                    "webdataset",
-                    data_files = data_files,
-                    split      = "train",
-                    num_proc   = 8,
-                    streaming  = False,  # 确保不使用流式加载以避免EXIF错误
-                )
-                break
-            except (UnicodeDecodeError, OSError, ValueError) as e:
-                print(f"加载数据集时出错 (尝试 {attempt + 1}/{max_retries}): {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(2 + random.uniform(0, 1))
-                else:
-                    raise RuntimeError(f"无法加载数据集，所有重试都失败了: {e}")
+        imagenet_wds_train = load_dataset(
+            "webdataset",
+            data_files = data_files,
+            split      = "train",
+            num_proc   = 8,
+            streaming  = False,  # 确保不使用流式加载以避免EXIF错误
+        )
 
         dataloader = DataLoader(
             imagenet_wds_train,
