@@ -65,8 +65,8 @@ def safe_image_transform(img):
 def collate_fn_imagenet_wds(batch):
     pixel_values = []
     labels = []
-    for sample in batch:
-        try:
+    try:
+        for sample in batch:
             img = safe_image_transform(sample["jpg"])
             if img is None:
                 continue
@@ -75,10 +75,8 @@ def collate_fn_imagenet_wds(batch):
                 continue
             labels.append(sample["cls"])
             pixel_values.append(img)
-        except Exception as e:
-            print(f"处理样本时出错: {e}")
-            continue
-    
+    except Exception as e:
+        print(f"处理样本时出错: {e}")
     # 如果所有图像都被跳过，返回空批次
     if len(pixel_values) == 0:
         return {"pixel_values": torch.empty(0, 3, 384, 384), "labels": torch.empty(0)}
