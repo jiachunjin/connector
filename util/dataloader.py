@@ -7,6 +7,8 @@ import os
 import warnings
 import io
 from PIL import Image
+import time
+import random
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # 设置PIL忽略EXIF错误
@@ -105,17 +107,84 @@ def collate_fn_imagenet_wds(batch):
     
     return {"pixel_values": pixel_values, "labels": labels}
 
+class RobustDataLoader:
+    """具有错误处理和重试机制的数据加载器包装器"""
+    
+    def __init__(self, dataloader, max_retries=3, retry_delay=1.0):
+        self.dataloader = dataloader
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        self.iterator = None
+        self._reset_iterator()
+    
+    def _reset_iterator(self):
+        """重置数据加载器迭代器"""
+        try:
+            self.iterator = iter(self.dataloader)
+        except Exception as e:
+            print(f"重置数据加载器迭代器时出错: {e}")
+            self.iterator = None
+    
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        """获取下一个批次，具有错误处理和重试机制"""
+        for attempt in range(self.max_retries):
+            try:
+                if self.iterator is None:
+                    self._reset_iterator()
+                    if self.iterator is None:
+                        raise RuntimeError("无法创建数据加载器迭代器")
+                
+                return next(self.iterator)
+                
+            except (UnicodeDecodeError, OSError, ValueError, RuntimeError) as e:
+                print(f"数据加载错误 (尝试 {attempt + 1}/{self.max_retries}): {e}")
+                print(f"错误类型: {type(e).__name__}")
+                
+                if attempt < self.max_retries - 1:
+                    # 等待一段时间后重试
+                    time.sleep(self.retry_delay + random.uniform(0, 0.5))
+                    self._reset_iterator()
+                else:
+                    # 最后一次尝试失败，返回空批次
+                    print("所有重试都失败了，返回空批次")
+                    return {"pixel_values": torch.empty(0, 3, 384, 384), "labels": torch.empty(0)}
+            
+            except StopIteration:
+                # 数据加载器已经遍历完毕
+                raise
+        
+        # 不应该到达这里
+        raise RuntimeError("意外的错误处理状态")
+
 def get_dataloader(config):
     if config.name == "imagenet_wds":
         data_files = glob.glob(os.path.join(config.train_path, "*.tar"))
+        
+        if not data_files:
+            raise ValueError(f"在路径 {config.train_path} 中没有找到 .tar 文件")
 
-        imagenet_wds_train = load_dataset(
-            "webdataset",
-            data_files = data_files,
-            split      = "train",
-            num_proc   = 8,
-            streaming  = False,  # 确保不使用流式加载以避免EXIF错误
-        )
+        # 添加错误处理和重试机制
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                imagenet_wds_train = load_dataset(
+                    "webdataset",
+                    data_files = data_files,
+                    split      = "train",
+                    num_proc   = 8,
+                    streaming  = False,  # 确保不使用流式加载以避免EXIF错误
+                )
+                break
+            except (UnicodeDecodeError, OSError, ValueError) as e:
+                print(f"加载数据集时出错 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 + random.uniform(0, 1))
+                else:
+                    raise RuntimeError(f"无法加载数据集，所有重试都失败了: {e}")
+
         dataloader = DataLoader(
             imagenet_wds_train,
             batch_size  = config.batch_size,
@@ -125,7 +194,11 @@ def get_dataloader(config):
             drop_last   = True,
             persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
         )
+        
+        # 包装数据加载器以添加错误处理
+        robust_dataloader = RobustDataLoader(dataloader, max_retries=3, retry_delay=1.0)
+        
         if getattr(config, "val_path", None) is None:
-            return dataloader
+            return robust_dataloader
         else:
             raise NotImplementedError

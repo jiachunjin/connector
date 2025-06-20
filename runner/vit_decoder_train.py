@@ -180,9 +180,9 @@ def main(args):
             accelerator.log({"epoch": epoch}, step=global_step)
             
         except Exception as e:
-            print(f"数据加载器出现错误: {e}")
+            print(f"训练过程中出现未预期的错误: {e}")
             print(f"错误类型: {type(e).__name__}")
-            print("重新创建数据加载器，继续训练")
+            print("继续训练...")
             continue
 
     accelerator.end_training()
