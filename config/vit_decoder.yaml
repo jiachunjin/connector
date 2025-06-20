@@ -42,6 +42,6 @@ data:
   name: "imagenet_wds"
   train_path:
   siglip_preprocess: false
-  batch_size: 512
+  batch_size: 45
   num_workers: 0
   img_size: 384
