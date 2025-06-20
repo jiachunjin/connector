@@ -7,8 +7,6 @@ import os
 import warnings
 import io
 from PIL import Image
-import time
-import random
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # 设置PIL忽略EXIF错误
@@ -108,13 +106,13 @@ def collate_fn_imagenet_wds(batch):
     return {"pixel_values": pixel_values, "labels": labels}
 
 class RobustDataLoader:
-    """具有错误处理和重试机制的数据加载器包装器"""
+    """具有错误处理的数据加载器包装器"""
     
-    def __init__(self, dataloader, max_retries=3, retry_delay=1.0):
+    def __init__(self, dataloader):
         self.dataloader = dataloader
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
         self.iterator = None
+        self.skipped_batches = 0
+        self.total_batches = 0
         self._reset_iterator()
     
     def _reset_iterator(self):
@@ -129,35 +127,64 @@ class RobustDataLoader:
         return self
     
     def __next__(self):
-        """获取下一个批次，具有错误处理和重试机制"""
-        for attempt in range(self.max_retries):
+        """获取下一个批次，具有错误处理"""
+        while True:
             try:
                 if self.iterator is None:
                     self._reset_iterator()
                     if self.iterator is None:
                         raise RuntimeError("无法创建数据加载器迭代器")
                 
-                return next(self.iterator)
+                batch = next(self.iterator)
+                self.total_batches += 1
+                return batch
                 
             except (UnicodeDecodeError, OSError, ValueError, RuntimeError) as e:
-                print(f"数据加载错误 (尝试 {attempt + 1}/{self.max_retries}): {e}")
-                print(f"错误类型: {type(e).__name__}")
+                print(f"数据加载错误: {e}")
+                self.skipped_batches += 1
+                print(f"跳过损坏的批次 (总计跳过: {self.skipped_batches})")
                 
-                if attempt < self.max_retries - 1:
-                    # 等待一段时间后重试
-                    time.sleep(self.retry_delay + random.uniform(0, 0.5))
+                # 尝试获取下一个批次
+                try:
+                    batch = next(self.iterator)
+                    self.total_batches += 1
+                    return batch
+                except StopIteration:
+                    # 如果已经到达数据集末尾，重新开始
+                    print("到达数据集末尾，重新开始迭代")
                     self._reset_iterator()
-                else:
-                    # 最后一次尝试失败，返回空批次
-                    print("所有重试都失败了，返回空批次")
-                    return {"pixel_values": torch.empty(0, 3, 384, 384), "labels": torch.empty(0)}
+                    if self.iterator is None:
+                        raise RuntimeError("无法重新创建数据加载器迭代器")
+                    batch = next(self.iterator)
+                    self.total_batches += 1
+                    return batch
+                except Exception as e2:
+                    print(f"获取下一个批次时出错: {e2}")
+                    # 如果下一个批次也有问题，重置迭代器
+                    self._reset_iterator()
+                    if self.iterator is None:
+                        raise RuntimeError("无法重新创建数据加载器迭代器")
+                    batch = next(self.iterator)
+                    self.total_batches += 1
+                    return batch
             
             except StopIteration:
-                # 数据加载器已经遍历完毕
-                raise
-        
-        # 不应该到达这里
-        raise RuntimeError("意外的错误处理状态")
+                # 数据加载器已经遍历完毕，重新开始
+                print("数据集遍历完毕，重新开始")
+                self._reset_iterator()
+                if self.iterator is None:
+                    raise RuntimeError("无法重新创建数据加载器迭代器")
+                batch = next(self.iterator)
+                self.total_batches += 1
+                return batch
+    
+    def get_stats(self):
+        """获取数据加载统计信息"""
+        return {
+            "total_batches": self.total_batches,
+            "skipped_batches": self.skipped_batches,
+            "skip_rate": self.skipped_batches / max(self.total_batches, 1) * 100
+        }
 
 def get_dataloader(config):
     if config.name == "imagenet_wds":
@@ -196,7 +223,7 @@ def get_dataloader(config):
         )
         
         # 包装数据加载器以添加错误处理
-        robust_dataloader = RobustDataLoader(dataloader, max_retries=3, retry_delay=1.0)
+        robust_dataloader = RobustDataLoader(dataloader)
         
         if getattr(config, "val_path", None) is None:
             return robust_dataloader
