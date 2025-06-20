@@ -33,10 +33,20 @@ def main():
 
     dataloader = accelerator.prepare(dataloader)
 
+    progress_bar = tqdm(
+        total   = config.train.num_iter,
+        initial = 0,
+        desc    = "Steps",
+        disable = not accelerator.is_local_main_process,
+    )
     for batch in tqdm(dataloader):
-        pass
-        # break
-
+        if batch["pixel_values"].shape[0] == 0:
+            print("跳过空批次")
+            continue
+        x = batch["pixel_values"]
+        if accelerator.sync_gradients:
+            global_step += 1
+            progress_bar.update(1)
     # for batch in dataloader:
     #     print(batch.keys())
     #     break
