@@ -1,5 +1,11 @@
 import torch
 import torch.nn as nn
+import math
+from torch.nn.functional import scaled_dot_product_attention
+
+
+def modulate(x, shift, scale):
+    return x * (1 + scale) + shift
 
 def apply_rotary_emb(
         xq: torch.Tensor,
@@ -32,6 +38,34 @@ def precompute_freqs_cis_2d(dim: int, height: int, width:int, theta: float = 100
     return freqs_cis
 
 
+class TimestepEmbedder(nn.Module):
+    def __init__(self, hidden_size, frequency_embedding_size=256):
+        super().__init__()
+        self.mlp = nn.Sequential(
+            nn.Linear(frequency_embedding_size, hidden_size, bias=True),
+            nn.SiLU(),
+            nn.Linear(hidden_size, hidden_size, bias=True),
+        )
+        self.frequency_embedding_size = frequency_embedding_size
+
+    @staticmethod
+    def timestep_embedding(t, dim, max_period=10000):
+        half = dim // 2
+        freqs = torch.exp(
+            -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32, device=t.device) / half
+        )
+        args = t[..., None].float() * freqs[None, ...]
+        embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+        if dim % 2:
+            embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
+        return embedding
+
+    def forward(self, t, dtype):
+        t_freq = self.timestep_embedding(t, self.frequency_embedding_size).to(dtype)
+        t_emb = self.mlp(t_freq)
+        return t_emb
+    
+
 class RMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """
@@ -49,6 +83,22 @@ class RMSNorm(nn.Module):
         return self.weight * hidden_states.to(input_dtype)
 
 
+class FeedForward(nn.Module):
+    def __init__(
+        self,
+        dim: int,
+        hidden_dim: int,
+    ):
+        super().__init__()
+        hidden_dim = int(2 * hidden_dim / 3)
+        self.w1 = nn.Linear(dim, hidden_dim, bias=False)
+        self.w3 = nn.Linear(dim, hidden_dim, bias=False)
+        self.w2 = nn.Linear(hidden_dim, dim, bias=False)
+    def forward(self, x):
+        x =  self.w2(torch.nn.functional.silu(self.w1(x)) * self.w3(x))
+        return x
+    
+
 class Attention(nn.Module):
     def __init__(
             self,
@@ -61,7 +111,7 @@ class Attention(nn.Module):
             norm_layer: nn.Module = RMSNorm,
     ) -> None:
         super().__init__()
-        assert dim % num_heads == 0, "dim should be divisible by num_heads"
+        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
 
         self.dim = dim
         self.num_heads = num_heads
@@ -75,7 +125,7 @@ class Attention(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x: torch.Tensor, pos, mask=None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, pos, mask) -> torch.Tensor:
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 1, 3, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # B N H Hc
@@ -86,7 +136,7 @@ class Attention(nn.Module):
         k = k.view(B, -1, self.num_heads, C // self.num_heads).transpose(1, 2).contiguous()  # B, H, N, Hc
         v = v.view(B, -1, self.num_heads, C // self.num_heads).transpose(1, 2).contiguous()
 
-        x = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0)
+        x = scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0)
 
         x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
@@ -94,33 +144,36 @@ class Attention(nn.Module):
         return x
 
 
-class FeedForward(nn.Module):
-    def __init__(
-        self,
-        dim: int,
-        hidden_dim: int,
-    ):
+class FinalLayer(nn.Module):
+    def __init__(self, hidden_size, out_channels):
         super().__init__()
-        self.fc1 = nn.Linear(dim, hidden_dim)
-        self.act = nn.GELU()
-        self.fc2 = nn.Linear(hidden_dim, dim)
-        
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.act(x)
-        x = self.fc2(x)
+        self.norm_final = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.linear = nn.Linear(hidden_size, out_channels, bias=True)
+        self.adaLN_modulation = nn.Sequential(
+            nn.Linear(hidden_size, 2*hidden_size, bias=True)
+        )
+
+    def forward(self, x, c):
+        shift, scale = self.adaLN_modulation(c).chunk(2, dim=-1)
+        x = modulate(self.norm_final(x), shift, scale)
+        x = self.linear(x)
         return x
 
 
-class Block(nn.Module):
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0):
+class DiTBlock(nn.Module):
+    def __init__(self, hidden_size, groups, mlp_ratio=4.0):
         super().__init__()
         self.norm1 = RMSNorm(hidden_size, eps=1e-6)
-        self.attn = Attention(hidden_size, num_heads=num_heads, qkv_bias=False)
+        self.attn = Attention(hidden_size, num_heads=groups, qkv_bias=False)
         self.norm2 = RMSNorm(hidden_size, eps=1e-6)
-        self.mlp = FeedForward(hidden_size, int(hidden_size * mlp_ratio))
+        mlp_hidden_dim = int(hidden_size * mlp_ratio)
+        self.mlp = FeedForward(hidden_size, mlp_hidden_dim)
+        self.adaLN_modulation = nn.Sequential(
+            nn.Linear(hidden_size, 6 * hidden_size, bias=True)
+        )
 
-    def forward(self, x, pos, mask=None):
-        x = x + self.attn(self.norm1(x), pos, mask=mask)
-        x = x + self.mlp(self.norm2(x))
+    def forward(self, x, c, pos, mask=None):
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)
+        x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa), pos, mask=mask)
+        x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x

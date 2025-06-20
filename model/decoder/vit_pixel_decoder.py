@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from einops.layers.torch import Rearrange
-from .vit_pixel_decoder_module import Block, precompute_freqs_cis_2d
+from .vit_pixel_decoder_basic import Block, precompute_freqs_cis_2d
 
 
 class ViTPixelDecoder(nn.Module):
