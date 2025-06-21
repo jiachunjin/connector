@@ -131,7 +131,9 @@ class RobustDataLoader:
         while True:
             try:
                 if self.iterator is None:
-                    raise RuntimeError("无法创建数据加载器迭代器")
+                    self._reset_iterator()  # 尝试重置迭代器
+                    if self.iterator is None:
+                        raise RuntimeError("无法创建数据加载器迭代器")
                 
                 batch = next(self.iterator)
                 self.total_batches += 1
@@ -142,11 +144,13 @@ class RobustDataLoader:
                 self.skipped_batches += 1
                 print(f"跳过损坏的批次 (总计跳过: {self.skipped_batches})")
                 
-                # 尝试获取下一个批次
+                # 尝试重置迭代器并获取下一个批次
                 try:
-                    batch = next(self.iterator)
-                    self.total_batches += 1
-                    return batch
+                    self._reset_iterator()
+                    if self.iterator is not None:
+                        batch = next(self.iterator)
+                        self.total_batches += 1
+                        return batch
                 except StopIteration:
                     # 如果已经到达数据集末尾，正常停止
                     raise StopIteration
