@@ -46,20 +46,16 @@ with torch.no_grad():
         rec.save(f"evaluation/rec_img/{rank}_{i}.png")
         ori.save(f"evaluation/ori_img/{rank}_{i}.png")
 
-        print(x.shape, x.device)
-        print(rec.shape, rec.device)
-        break
-
-# accelerator.wait_for_everyone()
-# if accelerator.is_main_process:
-#     metrics_dict = torch_fidelity.calculate_metrics(
-#         input1  = "evaluation/ori_img",
-#         input2  = "evaluation/rec_img",
-#         cuda    = True,
-#         isc     = True,
-#         fid     = True,
-#         kid     = True,
-#         prc     = True,
-#         verbose = True,
-#     )
-#     print(metrics_dict)
+accelerator.wait_for_everyone()
+if accelerator.is_main_process:
+    metrics_dict = torch_fidelity.calculate_metrics(
+        input1  = "evaluation/ori_img",
+        input2  = "evaluation/rec_img",
+        cuda    = True,
+        isc     = True,
+        fid     = True,
+        kid     = True,
+        prc     = True,
+        verbose = True,
+    )
+    print(metrics_dict)
