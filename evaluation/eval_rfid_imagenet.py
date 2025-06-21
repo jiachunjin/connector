@@ -7,7 +7,7 @@ import torchvision.transforms as pth_transforms
 from omegaconf import OmegaConf
 from accelerate import Accelerator
 from util.dataloader import get_imagenet_wds_val_dataloader
-from .eval_rfid_imagenet_basic import AutoEncoder
+from evaluation.eval_rfid_imagenet_basic import AutoEncoder
 
 exp_dir = "/data/phd/jinjiachun/experiment/decoder/0619_decoder"
 config_path = os.path.join(exp_dir, "config.yaml")
