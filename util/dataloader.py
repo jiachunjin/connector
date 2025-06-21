@@ -169,7 +169,7 @@ class RobustDataLoader:
 
 def get_dataloader(config):
     if config.name == "imagenet_wds":
-        data_files = glob.glob(os.path.join(config.train_path, "*.tar"))
+        data_files = glob.glob(os.path.join(config.train_path, "*train*.tar"))
         
         if not data_files:
             raise ValueError(f"在路径 {config.train_path} 中没有找到 .tar 文件")
