@@ -195,3 +195,27 @@ def get_dataloader(config):
             return robust_dataloader
         else:
             raise NotImplementedError
+
+def get_imagenet_wds_val_dataloader(config):
+    if config.name == "imagenet_wds":
+        data_files = glob.glob(os.path.join(config.train_path, "*validation*.tar"))
+
+        imagenet_wds_val = load_dataset(
+            "webdataset",
+            data_files = data_files,
+            split      = "train",
+            num_proc   = 8,
+            streaming  = False,  # 确保不使用流式加载以避免EXIF错误
+        )
+
+        dataloader = DataLoader(
+            imagenet_wds_val,
+            batch_size  = 50,
+            collate_fn  = collate_fn_imagenet_wds,
+            shuffle     = False,
+            num_workers = config.num_workers,
+            drop_last   = False,
+            persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
+        )
+
+        return dataloader
