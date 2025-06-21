@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 from janus.models import MultiModalityCausalLM
-from model.decoder.vit_pixel_decoder import VitPixelDecoder
+from model.decoder.vit_pixel_decoder import ViTPixelDecoder
 
 
 class AutoEncoder(nn.Module):
@@ -9,7 +9,7 @@ class AutoEncoder(nn.Module):
         super().__init__()
         self.config = config
         self.encoder = MultiModalityCausalLM.from_pretrained(config.janus_path, trust_remote_code=True).vision_model
-        self.decoder = VitPixelDecoder(config.decoder)
+        self.decoder = ViTPixelDecoder(config.decoder)
 
     def encode(self, x):
         return self.encoder(x)
