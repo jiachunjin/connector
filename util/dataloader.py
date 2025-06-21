@@ -203,7 +203,7 @@ def get_imagenet_wds_val_dataloader(config):
         imagenet_wds_val = load_dataset(
             "webdataset",
             data_files = data_files,
-            split      = "validation",
+            split      = "train",
             num_proc   = 8,
             streaming  = False,  # 确保不使用流式加载以避免EXIF错误
         )
