@@ -14,6 +14,11 @@ class ViTPixelDecoder(nn.Module):
         self.patch_size = config.patch_size
         self.grid_size = config.grid_size
         self.input_dim = config.input_dim
+        if getattr(config, "siglip_feature_dim_down", None) is not None:
+            self.siglip_feature_dim_down = config.siglip_feature_dim_down
+            self.siglip_feature_proj = nn.Linear(config.siglip_feature_dim, config.siglip_feature_dim_down)
+        else:
+            self.siglip_feature_dim_down = None
 
         self.input_proj = nn.Linear(config.input_dim, config.hidden_size)
         self.norm1 = nn.LayerNorm(config.hidden_size)
@@ -47,6 +52,8 @@ class ViTPixelDecoder(nn.Module):
     def forward(self, x):
         B, L, D = x.shape
         pos = self.fetch_pos(self.grid_size, self.grid_size, x.device)
+        if self.siglip_feature_dim_down is not None:
+            x = self.siglip_feature_proj(x)
         x = self.input_proj(x)
         x = self.norm1(x)
         for block in self.blocks:
