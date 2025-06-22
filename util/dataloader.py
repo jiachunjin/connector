@@ -181,7 +181,8 @@ def get_dataloader(config):
             "webdataset",
             data_files = data_files,
             split      = "train",
-            streaming  = True,  # 确保不使用流式加载以避免EXIF错误
+            num_proc   = 8,
+            streaming  = False,  # 确保不使用流式加载以避免EXIF错误
         )
 
         # 使用安全的数据集包装器
