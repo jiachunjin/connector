@@ -15,27 +15,12 @@ Image.MAX_IMAGE_PIXELS = None
 warnings.filterwarnings("ignore", category=UserWarning, module="PIL")
 
 class SafeImageDataset(Dataset):
-    """安全的数据集包装器，预处理图像以避免EXIF错误"""
+    """安全的数据集包装器，动态处理图像以避免EXIF错误"""
     
     def __init__(self, dataset):
         self.dataset = dataset
-        self.valid_indices = []
-        self._filter_valid_samples()
-    
-    def _filter_valid_samples(self):
-        """过滤出有效的样本索引"""
-        print("正在预处理数据集，过滤有问题的图像...")
-        for i in trange(len(self.dataset)):
-            try:
-                sample = self.dataset[i]
-                # 尝试安全地加载图像
-                if self._is_valid_sample(sample):
-                    self.valid_indices.append(i)
-            except Exception as e:
-                print(f"跳过样本 {i}: {e}")
-                continue
-        
-        print(f"数据集预处理完成: {len(self.valid_indices)}/{len(self.dataset)} 个有效样本")
+        self.valid_indices = set()  # 使用set来记录已验证的索引
+        self.invalid_indices = set()  # 使用set来记录无效的索引
     
     def _is_valid_sample(self, sample):
         """检查样本是否有效"""
@@ -62,11 +47,68 @@ class SafeImageDataset(Dataset):
             return False
     
     def __len__(self):
-        return len(self.valid_indices)
+        return len(self.dataset)
     
     def __getitem__(self, idx):
-        original_idx = self.valid_indices[idx]
-        return self.dataset[original_idx]
+        # 如果已经知道这个索引是无效的，跳过
+        if idx in self.invalid_indices:
+            # 返回下一个有效样本
+            return self._get_next_valid_sample(idx)
+        
+        # 如果已经验证过是有效的，直接返回
+        if idx in self.valid_indices:
+            return self.dataset[idx]
+        
+        # 第一次访问这个索引，验证样本
+        try:
+            sample = self.dataset[idx]
+            if self._is_valid_sample(sample):
+                self.valid_indices.add(idx)
+                return sample
+            else:
+                self.invalid_indices.add(idx)
+                return self._get_next_valid_sample(idx)
+        except Exception as e:
+            print(f"样本 {idx} 验证失败: {e}")
+            self.invalid_indices.add(idx)
+            return self._get_next_valid_sample(idx)
+    
+    def _get_next_valid_sample(self, current_idx):
+        """获取下一个有效样本"""
+        # 向前查找下一个有效样本
+        for i in range(current_idx + 1, len(self.dataset)):
+            if i not in self.invalid_indices:
+                if i in self.valid_indices:
+                    return self.dataset[i]
+                else:
+                    try:
+                        sample = self.dataset[i]
+                        if self._is_valid_sample(sample):
+                            self.valid_indices.add(i)
+                            return sample
+                        else:
+                            self.invalid_indices.add(i)
+                    except Exception:
+                        self.invalid_indices.add(i)
+        
+        # 如果向前找不到，向后查找
+        for i in range(current_idx - 1, -1, -1):
+            if i not in self.invalid_indices:
+                if i in self.valid_indices:
+                    return self.dataset[i]
+                else:
+                    try:
+                        sample = self.dataset[i]
+                        if self._is_valid_sample(sample):
+                            self.valid_indices.add(i)
+                            return sample
+                        else:
+                            self.invalid_indices.add(i)
+                    except Exception:
+                        self.invalid_indices.add(i)
+        
+        # 如果都找不到，返回一个默认样本或抛出异常
+        raise RuntimeError(f"无法找到有效样本，当前索引: {current_idx}")
 
 def safe_load_image(image_data):
     """安全地加载图像，处理EXIF错误"""
