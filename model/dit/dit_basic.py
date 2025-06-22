@@ -66,6 +66,16 @@ class TimestepEmbedder(nn.Module):
         return t_emb
     
 
+class LabelEmbedder(nn.Module):
+    def __init__(self, num_classes, hidden_size):
+        super().__init__()
+        self.embedding_table = nn.Embedding(num_classes + 1, hidden_size)
+        self.num_classes = num_classes
+
+    def forward(self, labels):
+        embeddings = self.embedding_table(labels)
+        return embeddings
+
 class RMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """

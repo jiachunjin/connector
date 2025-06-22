@@ -1,6 +1,8 @@
 dit:
+  x_dim: 32
+  grid_size: 24
   hidden_size: 1024
   num_heads: 16
   depth: 16
-  x_dim: 1024
-  z_dim: 2048
+  num_classes: 1000
+  

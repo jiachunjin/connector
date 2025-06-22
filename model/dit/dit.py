@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from .dit_basic import DiTBlock, TimestepEmbedder, FinalLayer, precompute_freqs_cis_2d
+from .dit_basic import DiTBlock, TimestepEmbedder, FinalLayer, precompute_freqs_cis_2d, LabelEmbedder
 
 
-class DiT(nn.Module):
+class DiTClassConditional(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -11,10 +11,10 @@ class DiT(nn.Module):
         self.num_heads = config.num_heads
         self.depth = config.depth
         self.x_dim = config.x_dim
-        self.z_dim = config.z_dim
+        self.grid_size = config.grid_size
 
         self.x_proj = nn.Linear(self.x_dim, self.hidden_size)
-        self.z_proj = nn.Linear(self.z_dim, self.hidden_size)
+        self.y_embedder = LabelEmbedder(config.num_classes, config.hidden_size)
         self.t_embedder = TimestepEmbedder(self.hidden_size)
         self.blocks = nn.ModuleList([
             DiTBlock(self.hidden_size, self.num_heads) for _ in range(self.depth)
@@ -30,14 +30,13 @@ class DiT(nn.Module):
             self.precompute_pos[(height, width)] = pos
             return pos
 
-    def forward(self, x_t, z, t):
+    def forward(self, x_t, y, t):
         B, L, d = x_t.shape
-        pos = self.fetch_pos(24, 24, x_t.device)
+        pos = self.fetch_pos(self.grid_size, self.grid_size, x_t.device)
         x = self.x_proj(x_t)
-        z = self.z_proj(z)
-
+        y = self.y_embedder(y)
         t = self.t_embedder(t.view(-1), x_t.dtype).view(B, -1, self.hidden_size)
-        c = t + z
+        c = t + y
         for i, block in enumerate(self.blocks):
             x = block(x, c, pos, None)
         
@@ -48,10 +47,10 @@ class DiT(nn.Module):
 
 if __name__ == "__main__":
     from omegaconf import OmegaConf
-    config = OmegaConf.load("config/pixel_siglip_dit.yaml")
-    dit = DiT(config.dit)
-    x_t = torch.randn(1, 576, 1024)
-    z = torch.randn(1, 576, 2048)
+    config = OmegaConf.load("config/dit_on_siglip_dim_down.yaml")
+    dit = DiTClassConditional(config.dit)
+    x_t = torch.randn(1, 576, 32)
+    y = torch.randint(0, 1000, (1,))
     t = torch.randint(0, 1000, (1,))
-    x = dit(x_t, z, t)
+    x = dit(x_t, y, t)
     print(x.shape)
