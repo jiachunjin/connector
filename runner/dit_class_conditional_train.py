@@ -10,9 +10,11 @@ from accelerate.utils import ProjectConfiguration
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-from model.dit import get_dit
+from model.decoder import get_decoder
+from model.dit import get_dit, get_diffusion_scheduler
 from util.dataloader import get_dataloader
 from util.misc import process_path_for_different_machine, flatten_dict
+from janus.models import MultiModalityCausalLM
 
 def get_accelerator(config):
     output_dir = os.path.join(config.root, config.exp_name, config.output_dir)
@@ -37,7 +39,18 @@ def main(args):
     accelerator.print(pprint.pformat(OmegaConf.to_container(config, resolve=True), indent=2, width=120).strip('{}'))
 
     # Load models and dataloader
+    decoder = get_decoder(config.decoder)
+    if config.decoder.pretrained_path is not None:
+        decoder.load_state_dict(torch.load(config.decoder.pretrained_path, map_location="cpu", weights_only=True), strict=True)
+    else:
+        accelerator.print("Warning: No pretrained path provided !!!")
+    decoder.eval()
+    decoder.requires_grad_(False)
+    janus = MultiModalityCausalLM.from_pretrained(config.janus_path, trust_remote_code=True)
+    extractor = janus.vision_model
+
     dit = get_dit(config.dit)
+    train_scheduler, _ = get_diffusion_scheduler()
     dataloader = get_dataloader(config.data)
 
     if config.train.resume_path is not None:
@@ -67,6 +80,8 @@ def main(args):
 
     dit, dataloader, optimizer = accelerator.prepare(dit, dataloader, optimizer)
     dit = dit.to(dtype)
+    decoder = decoder.to(accelerator.device, dtype)
+    extractor = extractor.to(accelerator.device, dtype)
 
     config.device_count = accelerator.num_processes
     if accelerator.is_main_process:
@@ -97,26 +112,58 @@ def main(args):
             if batch["pixel_values"].shape[0] == 0:
                 print("跳过空批次")
                 continue
+            with accelerator.accumulate(dit):
+                dit.train()
             
-            x = batch["pixel_values"].to(dtype)
-            y = batch["labels"]
-            print(x.shape, y.shape, y)
-            exit(0)
+                x = batch["pixel_values"].to(dtype)
+                y = batch["labels"]
+                with torch.no_grad():
+                    x_0 = extractor(x)
+                    x_0 = decoder.get_feature_dim_down(x_0)
+                    x_0 *= config.decoder.scale_factor
 
-            if accelerator.sync_gradients:
+                # Diffusion training
+                B = x_0.shape[0]
+                timesteps = torch.randint(0, 1000, (B,), dtype=torch.int64, device=accelerator.device)
+                noise = torch.randn_like(x_0, device=accelerator.device, dtype=x_0.dtype)
+                x_t = train_scheduler.add_noise(x_0, noise, timesteps)
+                target = train_scheduler.get_velocity(x_0, noise, timesteps)
+                pred = dit(x_t, y, timesteps).to(dtype)
+                loss = torch.nn.functional.mse_loss(pred, target, reduction="mean")
+
+                accelerator.backward(loss)
+                if accelerator.sync_gradients:
+                    optimizer.zero_grad()
+                    accelerator.clip_grad_norm_(params_to_learn, 1.0)
+                    optimizer.step()
+
                 global_step += 1
                 progress_bar.update(1)
+
+                logs = dict(
+                    dit_loss = accelerator.gather(loss.detach()).mean().item(),
+                )
+                accelerator.log(logs, step=global_step)
+                progress_bar.set_postfix(**logs)
+
+            if global_step > 0 and global_step % config.train.save_every == 0 and accelerator.is_main_process:
+                dit.eval()
+                state_dict = accelerator.unwrap_model(dit).state_dict()
+                save_path = os.path.join(output_dir, f"DiT-{config.train.exp_name}-{global_step}")
+                torch.save(state_dict, save_path)
+                print(f"DiT model saved to {save_path}")
+
+            accelerator.wait_for_everyone()
 
             if global_step >= config.train.num_iter:
                 training_done = True
                 break
-                
+
         epoch += 1
         accelerator.print(f"epoch {epoch}: finished")
-        accelerator.print(f"num_samples in this epoch {num_samples}")
         accelerator.log({"epoch": epoch}, step=global_step)
-        num_samples = 0
-        # break
+
+    accelerator.end_training()
 
 
 if __name__ == "__main__":

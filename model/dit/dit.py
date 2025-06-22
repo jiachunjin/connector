@@ -35,7 +35,7 @@ class DiTClassConditional(nn.Module):
         pos = self.fetch_pos(self.grid_size, self.grid_size, x_t.device)
         x = self.x_proj(x_t)
         y = self.y_embedder(y)
-        t = self.t_embedder(t.view(-1), x_t.dtype).view(B, -1, self.hidden_size)
+        t = self.t_embedder(t, x_t.dtype)
         c = t + y
         for i, block in enumerate(self.blocks):
             x = block(x, c, pos, None)

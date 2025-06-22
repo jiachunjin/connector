@@ -64,3 +64,22 @@ class ViTPixelDecoder(nn.Module):
         x = self.conv_out(x)
 
         return x
+
+    def get_feature_dim_down(self, x):
+        x = self.siglip_feature_proj(x)
+
+        return x
+
+    def decode_feature_dim_down(self, x):
+        B, L, D = x.shape
+        pos = self.fetch_pos(self.grid_size, self.grid_size, x.device)
+        x = self.input_proj(x)
+        x = self.norm1(x)
+        for block in self.blocks:
+            x = block(x, pos)
+        x = self.norm2(x)
+        x = x.permute(0, 2, 1).reshape(B, self.hidden_size, self.grid_size, self.grid_size).contiguous()
+        x = self.output_proj(x)
+        x = self.conv_out(x)
+
+        return x
