@@ -1,7 +1,7 @@
 import torch
 import glob
 from datasets import load_dataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as pth_transforms
 import os
 import warnings
@@ -12,6 +12,60 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 # 设置PIL忽略EXIF错误
 Image.MAX_IMAGE_PIXELS = None
 warnings.filterwarnings("ignore", category=UserWarning, module="PIL")
+
+class SafeImageDataset(Dataset):
+    """安全的数据集包装器，预处理图像以避免EXIF错误"""
+    
+    def __init__(self, dataset):
+        self.dataset = dataset
+        self.valid_indices = []
+        self._filter_valid_samples()
+    
+    def _filter_valid_samples(self):
+        """过滤出有效的样本索引"""
+        print("正在预处理数据集，过滤有问题的图像...")
+        for i in range(len(self.dataset)):
+            try:
+                sample = self.dataset[i]
+                # 尝试安全地加载图像
+                if self._is_valid_sample(sample):
+                    self.valid_indices.append(i)
+            except Exception as e:
+                print(f"跳过样本 {i}: {e}")
+                continue
+        
+        print(f"数据集预处理完成: {len(self.valid_indices)}/{len(self.dataset)} 个有效样本")
+    
+    def _is_valid_sample(self, sample):
+        """检查样本是否有效"""
+        try:
+            jpg_data = sample["jpg"]
+            if isinstance(jpg_data, bytes):
+                # 尝试加载图像但不保留，只验证是否有效
+                img = Image.open(io.BytesIO(jpg_data))
+                img.load()
+                img.close()
+            elif isinstance(jpg_data, Image.Image):
+                # 如果是PIL图像，验证是否有效
+                img = jpg_data
+                if hasattr(img, 'getexif'):
+                    try:
+                        img.getexif()
+                    except UnicodeDecodeError:
+                        return False
+            else:
+                return False
+            
+            return True
+        except (UnicodeDecodeError, OSError, ValueError, Exception):
+            return False
+    
+    def __len__(self):
+        return len(self.valid_indices)
+    
+    def __getitem__(self, idx):
+        original_idx = self.valid_indices[idx]
+        return self.dataset[original_idx]
 
 def safe_load_image(image_data):
     """安全地加载图像，处理EXIF错误"""
@@ -130,8 +184,11 @@ def get_dataloader(config):
             streaming  = False,  # 确保不使用流式加载以避免EXIF错误
         )
 
+        # 使用安全的数据集包装器
+        safe_dataset = SafeImageDataset(imagenet_wds_train)
+
         dataloader = DataLoader(
-            imagenet_wds_train,
+            safe_dataset,
             batch_size  = config.batch_size,
             collate_fn  = collate_fn_imagenet_wds,
             shuffle     = True,
@@ -140,10 +197,7 @@ def get_dataloader(config):
             persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
         )
         
-        if getattr(config, "val_path", None) is None:
-            return dataloader
-        else:
-            raise NotImplementedError
+        return dataloader
 
 def get_imagenet_wds_val_dataloader(config):
     if config.name == "imagenet_wds":
@@ -157,8 +211,11 @@ def get_imagenet_wds_val_dataloader(config):
             streaming  = False,  # 确保不使用流式加载以避免EXIF错误
         )
 
+        # 使用安全的数据集包装器
+        safe_dataset = SafeImageDataset(imagenet_wds_val)
+
         dataloader = DataLoader(
-            imagenet_wds_val,
+            safe_dataset,
             batch_size  = config.batch_size,
             collate_fn  = collate_fn_imagenet_wds,
             shuffle     = False,
