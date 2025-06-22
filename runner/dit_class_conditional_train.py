@@ -3,6 +3,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import torch
+import pprint
 import argparse
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration
@@ -32,7 +33,8 @@ def main(args):
     config = OmegaConf.load(args.config)
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
-    accelerator.print(config)
+    accelerator.print("Configuration:")
+    accelerator.print(pprint.pformat(OmegaConf.to_container(config, resolve=True), indent=2, width=120).strip('{}'))
 
     # Load models and dataloader
     dit = get_dit(config.dit)
@@ -96,8 +98,10 @@ def main(args):
                 print("跳过空批次")
                 continue
             
-            batch["pixel_values"] = batch["pixel_values"].to(dtype)
-            num_samples += batch["pixel_values"].shape[0]
+            x = batch["pixel_values"].to(dtype)
+            y = batch["labels"]
+            print(x.shape, y.shape, y)
+            exit(0)
 
             if accelerator.sync_gradients:
                 global_step += 1

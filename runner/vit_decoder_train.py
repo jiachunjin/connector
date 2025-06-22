@@ -7,6 +7,7 @@ from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration
 from omegaconf import OmegaConf
 import torch
+import pprint
 from tqdm import tqdm
 
 from model.decoder import get_decoder
@@ -34,7 +35,8 @@ def main(args):
     config = OmegaConf.load(args.config)
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
-    accelerator.print(config)
+    accelerator.print("Configuration:")
+    accelerator.print(pprint.pformat(OmegaConf.to_container(config, resolve=True), indent=2, width=120).strip('{}'))
 
     # Load models and dataloader
     decoder = get_decoder(config.decoder)

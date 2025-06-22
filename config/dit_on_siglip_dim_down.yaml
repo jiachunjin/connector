@@ -1,4 +1,4 @@
-machine: "ks" # [g3, ks]
+machine: "g3" # [g3, ks]
 
 train:
   root:
@@ -31,6 +31,6 @@ data:
   name: "imagenet_wds"
   train_path:
   siglip_preprocess: false
-  batch_size: 45
+  batch_size: 4
   num_workers: 0
   img_size: 384

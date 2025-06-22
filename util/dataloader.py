@@ -208,7 +208,7 @@ def collate_fn_imagenet_wds(batch):
         return {"pixel_values": torch.empty(0, 3, 384, 384), "labels": torch.empty(0)}
     
     pixel_values = torch.stack(pixel_values, dim=0)
-    labels = torch.Tensor(labels)
+    labels = torch.tensor(labels, dtype=torch.int32)
     
     return {"pixel_values": pixel_values, "labels": labels}
 
