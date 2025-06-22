@@ -112,78 +112,72 @@ def main(args):
         print(f"Accelerator mixed precision: {accelerator.mixed_precision}")
 
     while not training_done:
-        try:
-            for batch in dataloader:
-                # 检查批次是否为空
-                if batch["pixel_values"].shape[0] == 0:
-                    print("跳过空批次")
-                    continue
-                    
-                with accelerator.accumulate([decoder, rec_loss]):
-                    decoder.train()
-                    rec_loss.train()
-                    x = batch["pixel_values"]
-                    x = x.to(device=accelerator.device, dtype=dtype)
-                    x = x * 2 - 1
+        for batch in dataloader:
+            # 检查批次是否为空
+            if batch["pixel_values"].shape[0] == 0:
+                print("跳过空批次")
+                continue
+                
+            with accelerator.accumulate([decoder, rec_loss]):
+                decoder.train()
+                rec_loss.train()
+                x = batch["pixel_values"]
+                x = x.to(device=accelerator.device, dtype=dtype)
+                x = x * 2 - 1
 
-                    with torch.no_grad():
-                        feature = extractor(x).to(dtype)
-                    rec = decoder(feature)
+                with torch.no_grad():
+                    feature = extractor(x).to(dtype)
+                rec = decoder(feature)
 
-                    # ---------- train autoencoder ----------
-                    loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
+                # ---------- train autoencoder ----------
+                loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
 
-                    optimizer.zero_grad()
-                    accelerator.backward(loss_rec)
-                    if accelerator.sync_gradients:
-                        accelerator.clip_grad_norm_(params_to_learn, 1.0)
-                    optimizer.step()
+                optimizer.zero_grad()
+                accelerator.backward(loss_rec)
+                if accelerator.sync_gradients:
+                    accelerator.clip_grad_norm_(params_to_learn, 1.0)
+                optimizer.step()
 
-                    # ---------- train discriminator ----------
-                    loss_disc, loss_disc_dict = rec_loss(x, rec, global_step, "discriminator")
+                # ---------- train discriminator ----------
+                loss_disc, loss_disc_dict = rec_loss(x, rec, global_step, "discriminator")
 
-                    optimizer_disc.zero_grad()
-                    accelerator.backward(loss_disc)
-                    if accelerator.sync_gradients:
-                        accelerator.clip_grad_norm_(disc_params, 1.0)
-                    optimizer_disc.step()
+                optimizer_disc.zero_grad()
+                accelerator.backward(loss_disc)
+                if accelerator.sync_gradients:
+                    accelerator.clip_grad_norm_(disc_params, 1.0)
+                optimizer_disc.step()
 
-                    if accelerator.sync_gradients:
-                        global_step += 1
-                        progress_bar.update(1)
+                if accelerator.sync_gradients:
+                    global_step += 1
+                    progress_bar.update(1)
 
-                        logs = dict(
-                            loss_rec  = accelerator.gather(loss_rec.detach()).mean().item(),
-                            loss_disc = accelerator.gather(loss_disc.detach()).mean().item(),
-                            **loss_rec_dict,
-                            **loss_disc_dict,
-                        )
-                        accelerator.log(logs, step=global_step)
-                        progress_bar.set_postfix(**logs)
+                    logs = dict(
+                        loss_rec  = accelerator.gather(loss_rec.detach()).mean().item(),
+                        loss_disc = accelerator.gather(loss_disc.detach()).mean().item(),
+                        **loss_rec_dict,
+                        **loss_disc_dict,
+                    )
+                    accelerator.log(logs, step=global_step)
+                    progress_bar.set_postfix(**logs)
 
-                if global_step > 0 and global_step % config.train.save_every == 0 and accelerator.is_main_process:
-                    decoder.eval()
-                    state_dict = accelerator.unwrap_model(decoder).state_dict()
-                    torch.save(state_dict, os.path.join(output_dir, f"Decoder-{config.train.exp_name}-{global_step // 1000}k"))
+            if global_step > 0 and global_step % config.train.save_every == 0 and accelerator.is_main_process:
+                decoder.eval()
+                state_dict = accelerator.unwrap_model(decoder).state_dict()
+                torch.save(state_dict, os.path.join(output_dir, f"Decoder-{config.train.exp_name}-{global_step // 1000}k"))
 
-                    state_dict = accelerator.unwrap_model(rec_loss).state_dict()
-                    torch.save(state_dict, os.path.join(output_dir, f"Loss-{config.train.exp_name}-{global_step // 1000}k"))
+                state_dict = accelerator.unwrap_model(rec_loss).state_dict()
+                torch.save(state_dict, os.path.join(output_dir, f"Loss-{config.train.exp_name}-{global_step // 1000}k"))
 
-                accelerator.wait_for_everyone()
+            accelerator.wait_for_everyone()
 
-                if global_step >= config.train.num_iter:
-                    training_done = True
-                    break
-                    
-            epoch += 1
-            accelerator.print(f"epoch {epoch}: finished")
-            accelerator.log({"epoch": epoch}, step=global_step)
-            
-        except Exception as e:
-            print(f"训练过程中出现未预期的错误: {e}")
-            print(f"错误类型: {type(e).__name__}")
-            print("继续训练...")
-            continue
+            if global_step >= config.train.num_iter:
+                training_done = True
+                break
+                
+        epoch += 1
+        accelerator.print(f"epoch {epoch}: finished")
+        accelerator.log({"epoch": epoch}, step=global_step)
+
 
     accelerator.end_training()
 
