@@ -66,6 +66,8 @@ def safe_image_transform(img):
 def collate_fn_imagenet_wds(batch):
     pixel_values = []
     labels = []
+    skipped_count = 0
+    
     try:
         for sample in batch:
             try:
@@ -76,96 +78,42 @@ def collate_fn_imagenet_wds(batch):
                         img.load()  # Force load to validate
                     except Exception as e:
                         print(f"Skipping corrupted image: {e}")
+                        skipped_count += 1
                         continue
                 elif isinstance(jpg_data, Image.Image):
                     img = jpg_data
                 else:
                     print(f"Unexpected image type: {type(jpg_data)}, skipping")
+                    skipped_count += 1
                     continue
             except Exception as e:
                 print(f"Error processing sample: {e}")
+                skipped_count += 1
                 continue
 
             img = safe_image_transform(img)
             if img is None:
+                skipped_count += 1
                 continue
             if img.shape[0] != 3:
                 print("skip", img.shape)
+                skipped_count += 1
                 continue
             labels.append(sample["cls"])
             pixel_values.append(img)
     except Exception as e:
         print(f"处理样本时出错: {e}")
+        skipped_count += 1
+    
     # 如果所有图像都被跳过，返回空批次
     if len(pixel_values) == 0:
+        print(f"批次中所有图像都被跳过 (跳过数量: {skipped_count})")
         return {"pixel_values": torch.empty(0, 3, 384, 384), "labels": torch.empty(0)}
     
     pixel_values = torch.stack(pixel_values, dim=0)
     labels = torch.Tensor(labels)
     
     return {"pixel_values": pixel_values, "labels": labels}
-
-class RobustDataLoader:
-    """具有错误处理的数据加载器包装器"""
-    
-    def __init__(self, dataloader):
-        self.dataloader = dataloader
-        self.iterator = None
-        self.skipped_batches = 0
-        self.total_batches = 0
-        self._reset_iterator()
-    
-    def _reset_iterator(self):
-        """重置数据加载器迭代器"""
-        try:
-            self.iterator = iter(self.dataloader)
-        except Exception as e:
-            print(f"重置数据加载器迭代器时出错: {e}")
-            self.iterator = None
-    
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        """获取下一个批次，具有错误处理"""
-        while True:
-            try:
-                if self.iterator is None:
-                    self._reset_iterator()  # 尝试重置迭代器
-                    if self.iterator is None:
-                        raise RuntimeError("无法创建数据加载器迭代器")
-                
-                batch = next(self.iterator)
-                self.total_batches += 1
-                return batch
-                
-            except (UnicodeDecodeError, OSError, ValueError, RuntimeError) as e:
-                print(f"数据加载错误: {e}")
-                self.skipped_batches += 1
-                print(f"跳过损坏的批次 (总计跳过: {self.skipped_batches})")
-                
-                # 尝试重置迭代器并获取下一个批次
-                try:
-                    self._reset_iterator()
-                    if self.iterator is not None:
-                        batch = next(self.iterator)
-                        self.total_batches += 1
-                        return batch
-                except StopIteration:
-                    # 如果已经到达数据集末尾，正常停止
-                    raise StopIteration
-            
-            except StopIteration:
-                # 数据加载器已经遍历完毕，正常停止
-                raise StopIteration
-    
-    def get_stats(self):
-        """获取数据加载统计信息"""
-        return {
-            "total_batches": self.total_batches,
-            "skipped_batches": self.skipped_batches,
-            "skip_rate": self.skipped_batches / max(self.total_batches, 1) * 100
-        }
 
 def get_dataloader(config):
     if config.name == "imagenet_wds":
@@ -192,11 +140,8 @@ def get_dataloader(config):
             persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
         )
         
-        # 包装数据加载器以添加错误处理
-        robust_dataloader = RobustDataLoader(dataloader)
-        
         if getattr(config, "val_path", None) is None:
-            return robust_dataloader
+            return dataloader
         else:
             raise NotImplementedError
 

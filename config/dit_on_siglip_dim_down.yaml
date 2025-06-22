@@ -1,8 +1,36 @@
+machine: "g3" # [g3, ks]
+
+train:
+  root:
+  resume_path:
+  skipped_keys:
+  global_step:
+
+  exp_name: &exp_name "dit"
+  wandb_proj: *exp_name
+  output_dir: "0622_dit_siglip_32_class_conditional"
+  logging_dir: "logs"
+  mixed_precision: "bf16"
+  gradient_accumulation_steps: 1
+  report_to: "no"
+
+  lr: 1e-4
+  num_iter: 500000
+  save_every: 5000
+
 dit:
+  type: "dit_class_conditional"
   x_dim: 32
   grid_size: 24
   hidden_size: 1024
   num_heads: 16
   depth: 16
   num_classes: 1000
-  
+
+data:
+  name: "imagenet_wds"
+  train_path:
+  siglip_preprocess: false
+  batch_size: 45
+  num_workers: 0
+  img_size: 384
