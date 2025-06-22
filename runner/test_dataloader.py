@@ -25,7 +25,7 @@ def get_accelerator(config):
     return accelerator, output_dir
 
 def main():
-    config = OmegaConf.load("config/vit_decoder.yaml")
+    config = OmegaConf.load("config/dit_on_siglip_dim_down.yaml")
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
 
@@ -33,6 +33,7 @@ def main():
 
     dataloader = accelerator.prepare(dataloader)
 
+    epoch = 0
     global_step = 0
     progress_bar = tqdm(
         total   = config.train.num_iter,
@@ -41,21 +42,28 @@ def main():
         disable = not accelerator.is_local_main_process,
     )
     
-    try:
+    num_samples = 0
+    while True:
         for batch in dataloader:
             if batch["pixel_values"].shape[0] == 0:
                 print("跳过空批次")
                 continue
-            x = batch["pixel_values"]
+            num_samples += batch["pixel_values"].shape[0]
+
             if accelerator.sync_gradients:
                 global_step += 1
                 progress_bar.update(1)
-    except Exception as e:
-        print(f"数据加载器出现错误: {e}")
-        print(f"错误类型: {type(e).__name__}")
-        print("跳过有问题的批次，继续训练")
-        pass
-    print("test passed")
+
+            if global_step >= config.train.num_iter:
+                training_done = True
+                break
+                
+        epoch += 1
+        accelerator.print(f"epoch {epoch}: finished")
+        accelerator.print(f"num_samples in this epoch {num_samples}")
+        accelerator.log({"epoch": epoch}, step=global_step)
+        num_samples = 0
+        # break
 
 if __name__ == "__main__":
     main()
