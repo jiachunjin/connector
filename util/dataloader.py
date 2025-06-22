@@ -7,6 +7,7 @@ import os
 import warnings
 import io
 from PIL import Image
+from tqdm import trange
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # 设置PIL忽略EXIF错误
@@ -24,7 +25,7 @@ class SafeImageDataset(Dataset):
     def _filter_valid_samples(self):
         """过滤出有效的样本索引"""
         print("正在预处理数据集，过滤有问题的图像...")
-        for i in range(len(self.dataset)):
+        for i in trange(len(self.dataset)):
             try:
                 sample = self.dataset[i]
                 # 尝试安全地加载图像
@@ -180,8 +181,8 @@ def get_dataloader(config):
             "webdataset",
             data_files = data_files,
             split      = "train",
-            num_proc   = 8,
-            streaming  = False,  # 确保不使用流式加载以避免EXIF错误
+            num_proc   = 0,
+            streaming  = True,  # 确保不使用流式加载以避免EXIF错误
         )
 
         # 使用安全的数据集包装器
