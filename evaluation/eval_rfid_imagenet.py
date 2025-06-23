@@ -20,7 +20,7 @@ dataloader = get_imagenet_wds_val_dataloader(config.data)
 
 autoencoder = AutoEncoder(config)
 
-autoencoder.decoder.load_state_dict(torch.load(os.path.join(exp_dir, "Decoder-decoder-425k"), map_location="cpu", weights_only=True), strict=True)
+autoencoder.decoder.load_state_dict(torch.load(os.path.join(exp_dir, "Decoder-decoder-485k"), map_location="cpu", weights_only=True), strict=True)
 autoencoder.eval()
 
 accelerator = Accelerator()

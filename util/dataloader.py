@@ -142,7 +142,14 @@ imagenet_transform_train = pth_transforms.Compose([
     pth_transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0] == 1 else x),  # 将单通道转换为三通道
 ])
 
-def safe_image_transform(img):
+imagenet_transform_val = pth_transforms.Compose([
+    pth_transforms.Resize(384, max_size=None),
+    pth_transforms.CenterCrop(384),
+    pth_transforms.ToTensor(),
+    pth_transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0] == 1 else x),  # 将单通道转换为三通道
+])
+
+def safe_image_transform(img, is_train=True):
     """安全地处理图像，跳过有EXIF错误的图像"""
     try:
         # 首先安全地加载图像
@@ -154,13 +161,17 @@ def safe_image_transform(img):
         if safe_img.mode != "RGB":
             safe_img = safe_img.convert("RGB")
         
-        return imagenet_transform_train(safe_img)
+        # 根据是否为训练集选择不同的变换
+        if is_train:
+            return imagenet_transform_train(safe_img)
+        else:
+            return imagenet_transform_val(safe_img)
     except (UnicodeDecodeError, OSError, ValueError) as e:
         # 跳过有问题的图像
         print(f"跳过有问题的图像: {e}")
         return None
 
-def collate_fn_imagenet_wds(batch):
+def collate_fn_imagenet_wds(batch, is_train=True):
     pixel_values = []
     labels = []
     skipped_count = 0
@@ -188,7 +199,7 @@ def collate_fn_imagenet_wds(batch):
                 skipped_count += 1
                 continue
 
-            img = safe_image_transform(img)
+            img = safe_image_transform(img, is_train=is_train)
             if img is None:
                 skipped_count += 1
                 continue
@@ -212,6 +223,12 @@ def collate_fn_imagenet_wds(batch):
     
     return {"pixel_values": pixel_values, "labels": labels}
 
+def collate_fn_imagenet_wds_train(batch):
+    return collate_fn_imagenet_wds(batch, is_train=True)
+
+def collate_fn_imagenet_wds_val(batch):
+    return collate_fn_imagenet_wds(batch, is_train=False)
+
 def get_dataloader(config):
     if config.name == "imagenet_wds":
         data_files = glob.glob(os.path.join(config.train_path, "*train*.tar"))
@@ -233,7 +250,7 @@ def get_dataloader(config):
         dataloader = DataLoader(
             safe_dataset,
             batch_size  = config.batch_size,
-            collate_fn  = collate_fn_imagenet_wds,
+            collate_fn  = collate_fn_imagenet_wds_train,
             shuffle     = True,
             num_workers = config.num_workers,
             drop_last   = True,
@@ -260,7 +277,7 @@ def get_imagenet_wds_val_dataloader(config):
         dataloader = DataLoader(
             safe_dataset,
             batch_size  = config.batch_size,
-            collate_fn  = collate_fn_imagenet_wds,
+            collate_fn  = collate_fn_imagenet_wds_val,
             shuffle     = False,
             num_workers = config.num_workers,
             drop_last   = False,
