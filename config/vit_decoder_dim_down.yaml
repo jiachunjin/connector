@@ -16,7 +16,7 @@ train:
 
   lr: 1e-4
   lr_disc: 1e-5
-  num_iter: 100000
+  num_iter: 200000
   save_every: 5000
 
 decoder:
