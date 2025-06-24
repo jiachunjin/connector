@@ -23,5 +23,4 @@ class AutoEncoder(nn.Module):
     def forward_with_feature_dim_down(self, x):
         z = self.encoder(x)
         z = self.decoder.get_feature_dim_down(z)
-        print(z.shape)
         return self.decoder.decode_feature_dim_down(z)
