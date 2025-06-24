@@ -37,7 +37,7 @@ with torch.no_grad():
         x = batch["pixel_values"]
         x = x * 2 - 1
         # rec = autoencoder(x)
-        rec = autoencoder.forward_with_feature_dim_down(x)
+        rec = autoencoder.module.forward_with_feature_dim_down(x)
 
         x = ((x + 1) / 2).clamp(0, 1)
         rec = ((rec + 1) / 2).clamp(0, 1)
