@@ -11,7 +11,8 @@ from util.dataloader import get_imagenet_wds_val_dataloader
 from evaluation.eval_rfid_imagenet_basic import AutoEncoder
 from tqdm import tqdm
 
-exp_dir = "/data/phd/jinjiachun/experiment/decoder/0619_decoder"
+# exp_dir = "/data/phd/jinjiachun/experiment/decoder/0619_decoder"
+exp_dir = "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32"
 config_path = os.path.join(exp_dir, "config.yaml")
 config = OmegaConf.load(config_path)
 config.data.batch_size = 1
@@ -20,7 +21,7 @@ dataloader = get_imagenet_wds_val_dataloader(config.data)
 
 autoencoder = AutoEncoder(config)
 
-autoencoder.decoder.load_state_dict(torch.load(os.path.join(exp_dir, "Decoder-decoder-485k"), map_location="cpu", weights_only=True), strict=True)
+autoencoder.decoder.load_state_dict(torch.load(os.path.join(exp_dir, "Decoder-decoder-100k"), map_location="cpu", weights_only=True), strict=True)
 autoencoder.eval()
 
 accelerator = Accelerator()
@@ -35,16 +36,17 @@ with torch.no_grad():
     for i, batch in tqdm(enumerate(dataloader)):
         x = batch["pixel_values"]
         x = x * 2 - 1
-        rec = autoencoder(x)
+        # rec = autoencoder(x)
+        rec = autoencoder.forward_with_feature_dim_down(x)
 
         x = ((x + 1) / 2).clamp(0, 1)
         rec = ((rec + 1) / 2).clamp(0, 1)
 
         rec = pth_transforms.ToPILImage()(rec.cpu().squeeze(0))
-        ori = pth_transforms.ToPILImage()(x.cpu().squeeze(0))
+        # ori = pth_transforms.ToPILImage()(x.cpu().squeeze(0))
 
         rec.save(f"evaluation/rec_img/{rank}_{i}.png")
-        ori.save(f"evaluation/ori_img/{rank}_{i}.png")
+        # ori.save(f"evaluation/ori_img/{rank}_{i}.png")
 
 accelerator.wait_for_everyone()
 if accelerator.is_main_process:

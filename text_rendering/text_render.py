@@ -320,7 +320,7 @@ def render_text_with_effects(image_path, text, output_path=None, font_size=30, f
 if __name__ == "__main__":
     # 基本文本渲染
     render_text_on_image(
-        image_path="/home/jjc/codebase/connector/asset/tokyo.png",
+        image_path="asset/sky.jpeg",
         text="Hello World!",
         # text="早安，北京！",
         output_path="output_basic.jpg",

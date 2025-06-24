@@ -4,3 +4,4 @@ asset/
 *.ckpt
 *.ipynb
 tmp.py
+*.jpg
