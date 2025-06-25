@@ -19,6 +19,11 @@ class ViTPixelDecoder(nn.Module):
             self.siglip_feature_proj = nn.Linear(config.siglip_feature_dim, config.siglip_feature_dim_down)
         else:
             self.siglip_feature_dim_down = None
+        if getattr(config, "gaussian_reg", False):
+            self.gaussian_reg = True
+            self.siglip_feature_proj_Gaussian = nn.Linear(config.siglip_feature_dim, config.siglip_feature_dim_down)
+        else:
+            self.gaussian_reg = False
 
         self.input_proj = nn.Linear(config.input_dim, config.hidden_size)
         self.norm1 = nn.LayerNorm(config.hidden_size)
@@ -49,21 +54,32 @@ class ViTPixelDecoder(nn.Module):
             self.precompute_pos[(height, width)] = pos
             return pos
 
-    def forward(self, x):
-        B, L, D = x.shape
-        pos = self.fetch_pos(self.grid_size, self.grid_size, x.device)
+    def forward(self, x_siglip):
+        B, L, D = x_siglip.shape
+        pos = self.fetch_pos(self.grid_size, self.grid_size, x_siglip.device)
         if self.siglip_feature_dim_down is not None:
-            x = self.siglip_feature_proj(x)
+            x = self.siglip_feature_proj(x_siglip)
+        if self.gaussian_reg:
+            x_Gaussian = self.siglip_feature_proj_Gaussian(x_siglip)
+            # reparametrization trick
+            x_Gaussian_sample = x_Gaussian + torch.randn_like(x_Gaussian)
+            x = torch.cat([x, x_Gaussian_sample], dim=0)
+            print(f"After concatenation, x.shape: {x.shape}")
         x = self.input_proj(x)
         x = self.norm1(x)
         for block in self.blocks:
             x = block(x, pos)
         x = self.norm2(x)
-        x = x.permute(0, 2, 1).reshape(B, self.hidden_size, self.grid_size, self.grid_size).contiguous()
+        x = x.permute(0, 2, 1).reshape(-1, self.hidden_size, self.grid_size, self.grid_size).contiguous()
         x = self.output_proj(x)
-        x = self.conv_out(x)
+        rec = self.conv_out(x)
 
-        return x
+        if not self.gaussian_reg:
+            return rec
+        else:
+            rec_original, rec_Gaussian = rec.split(B, dim=0)
+            print(f"rec_original.shape: {rec_original.shape}, rec_Gaussian.shape: {rec_Gaussian.shape}")
+            return rec_original, rec_Gaussian, x_Gaussian
 
     def get_feature_dim_down(self, x):
         x = self.siglip_feature_proj(x)
