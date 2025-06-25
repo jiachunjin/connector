@@ -1,10 +1,10 @@
 machine: "ks" # [g3, ks]
 train:
   root:
-  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32/Decoder-decoder-95k"
+  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32/Decoder-decoder-140k"
   skipped_keys:
-  resume_path_recloss: "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32/Loss-decoder-95k"
-  global_step: 95000
+  resume_path_recloss: "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32/Loss-decoder-140k"
+  global_step: 140000
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
@@ -16,7 +16,7 @@ train:
 
   lr: 1e-4
   lr_disc: 1e-5
-  num_iter: 200000
+  num_iter: 500000
   save_every: 5000
 
 decoder:
