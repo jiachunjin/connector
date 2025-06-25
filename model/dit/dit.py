@@ -53,8 +53,8 @@ if __name__ == "__main__":
     from omegaconf import OmegaConf
     config = OmegaConf.load("config/dit_on_siglip_dim_down.yaml")
     dit = DiTClassConditional(config.dit)
-    x_t = torch.randn(1, 576, 32)
-    y = torch.randint(0, 1000, (1,))
-    t = torch.randint(0, 1000, (1,))
+    x_t = torch.randn(2, 576, 32)
+    y = torch.randint(0, 1000, (2,))
+    t = torch.randint(0, 1000, (2,))
     x = dit(x_t, y, t)
     print(x.shape)

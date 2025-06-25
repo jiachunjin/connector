@@ -1,9 +1,12 @@
 from diffusers import DDPMScheduler, DDIMScheduler
 from .dit import DiTClassConditional
+from .dit_fb import DiT_fb
 
 def get_dit(config):
     if config.type == "dit_class_conditional":
         dit = DiTClassConditional(config)
+    elif config.type == "dit_fb":
+        dit = DiT_fb(config)
     elif config.type is None:
         dit = None
     

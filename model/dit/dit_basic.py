@@ -5,7 +5,10 @@ from torch.nn.functional import scaled_dot_product_attention
 
 
 def modulate(x, shift, scale):
-    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+    print(x.shape, (1 + scale.unsqueeze(1)).shape, shift.unsqueeze(1).shape)
+    result = x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
+    print('result', result.shape)
+    return result
 
 def apply_rotary_emb(
         xq: torch.Tensor,
@@ -188,6 +191,7 @@ class DiTBlock(nn.Module):
         )
 
     def forward(self, x, c, pos, mask=None):
+        print(x.shape, c.shape)
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)
         # 确保所有的调制参数都能正确广播到序列维度
         # x: [B, N, C], shift/scale/gate: [B, C] -> 需要广播到 [B, N, C]
@@ -198,7 +202,9 @@ class DiTBlock(nn.Module):
         #     shift_mlp = shift_mlp.unsqueeze(1)  # [B, C] -> [B, 1, C]
         #     scale_mlp = scale_mlp.unsqueeze(1)  # [B, C] -> [B, 1, C]
         #     gate_mlp = gate_mlp.unsqueeze(1)    # [B, C] -> [B, 1, C]
-        
-        x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa), pos, mask=mask)
+        tmp = modulate(self.norm1(x), shift_msa, scale_msa)
+        print('tmp', tmp.shape)
+        print('after attn', self.attn(tmp, pos, mask=mask).shape, 'gate_msa', gate_msa.shape)
+        x = x + gate_msa * self.attn(tmp, pos, mask=mask)
         x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x

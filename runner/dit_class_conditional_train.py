@@ -130,7 +130,7 @@ def main(args):
                 noise = torch.randn_like(x_0, device=accelerator.device, dtype=x_0.dtype)
                 x_t = train_scheduler.add_noise(x_0, noise, timesteps)
                 target = train_scheduler.get_velocity(x_0, noise, timesteps)
-                pred = dit(x_t, y, timesteps).to(dtype)
+                pred = dit(x_t, timesteps, y).to(dtype)
                 loss = torch.nn.functional.mse_loss(pred, target, reduction="mean")
 
                 accelerator.backward(loss)
