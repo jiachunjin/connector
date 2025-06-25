@@ -5,7 +5,7 @@ from torch.nn.functional import scaled_dot_product_attention
 
 
 def modulate(x, shift, scale):
-    return x * (1 + scale) + shift
+    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
 def apply_rotary_emb(
         xq: torch.Tensor,
@@ -167,9 +167,9 @@ class FinalLayer(nn.Module):
         shift, scale = self.adaLN_modulation(c).chunk(2, dim=-1)
         # 确保 shift 和 scale 能够正确广播到 x 的形状
         # x: [B, N, C], shift/scale: [B, C] -> 需要广播到 [B, N, C]
-        if shift.dim() == 2 and x.dim() == 3:
-            shift = shift.unsqueeze(1)  # [B, C] -> [B, 1, C]
-            scale = scale.unsqueeze(1)  # [B, C] -> [B, 1, C]
+        # if shift.dim() == 2 and x.dim() == 3:
+        #     shift = shift.unsqueeze(1)  # [B, C] -> [B, 1, C]
+        #     scale = scale.unsqueeze(1)  # [B, C] -> [B, 1, C]
         x = modulate(self.norm_final(x), shift, scale)
         x = self.linear(x)
         return x
@@ -191,13 +191,13 @@ class DiTBlock(nn.Module):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, dim=-1)
         # 确保所有的调制参数都能正确广播到序列维度
         # x: [B, N, C], shift/scale/gate: [B, C] -> 需要广播到 [B, N, C]
-        if shift_msa.dim() == 2 and x.dim() == 3:
-            shift_msa = shift_msa.unsqueeze(1)  # [B, C] -> [B, 1, C]
-            scale_msa = scale_msa.unsqueeze(1)  # [B, C] -> [B, 1, C]
-            gate_msa = gate_msa.unsqueeze(1)    # [B, C] -> [B, 1, C]
-            shift_mlp = shift_mlp.unsqueeze(1)  # [B, C] -> [B, 1, C]
-            scale_mlp = scale_mlp.unsqueeze(1)  # [B, C] -> [B, 1, C]
-            gate_mlp = gate_mlp.unsqueeze(1)    # [B, C] -> [B, 1, C]
+        # if shift_msa.dim() == 2 and x.dim() == 3:
+        #     shift_msa = shift_msa.unsqueeze(1)  # [B, C] -> [B, 1, C]
+        #     scale_msa = scale_msa.unsqueeze(1)  # [B, C] -> [B, 1, C]
+        #     gate_msa = gate_msa.unsqueeze(1)    # [B, C] -> [B, 1, C]
+        #     shift_mlp = shift_mlp.unsqueeze(1)  # [B, C] -> [B, 1, C]
+        #     scale_mlp = scale_mlp.unsqueeze(1)  # [B, C] -> [B, 1, C]
+        #     gate_mlp = gate_mlp.unsqueeze(1)    # [B, C] -> [B, 1, C]
         
         x = x + gate_msa * self.attn(modulate(self.norm1(x), shift_msa, scale_msa), pos, mask=mask)
         x = x + gate_mlp * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
