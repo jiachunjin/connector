@@ -19,11 +19,6 @@ class ViTPixelDecoder(nn.Module):
             self.siglip_feature_proj = nn.Linear(config.siglip_feature_dim, config.siglip_feature_dim_down)
         else:
             self.siglip_feature_dim_down = None
-        if getattr(config, "gaussian_reg", False):
-            self.gaussian_reg = True
-            self.siglip_feature_proj_Gaussian = nn.Linear(config.siglip_feature_dim, config.siglip_feature_dim_down)
-        else:
-            self.gaussian_reg = False
 
         self.input_proj = nn.Linear(config.input_dim, config.hidden_size)
         self.norm1 = nn.LayerNorm(config.hidden_size)
@@ -63,14 +58,7 @@ class ViTPixelDecoder(nn.Module):
             x = self.siglip_feature_proj(x_siglip)
         else:
             x = x_siglip
-            
-        if self.gaussian_reg:
-            x_Gaussian = self.siglip_feature_proj_Gaussian(x_siglip)
-            # reparametrization trick
-            x_Gaussian_sample = x_Gaussian + torch.randn_like(x_Gaussian)
-            x = torch.cat([x, x_Gaussian_sample], dim=0)
-            print(f"After concatenation, x.shape: {x.shape}")
-        
+
         x = self.input_proj(x)
         x = self.norm1(x)
         for block in self.blocks:
@@ -80,12 +68,7 @@ class ViTPixelDecoder(nn.Module):
         x = self.output_proj(x)
         rec = self.conv_out(x)
 
-        if not self.gaussian_reg:
-            return rec
-        else:
-            rec_original, rec_Gaussian = rec.split(B, dim=0)
-            print(f"rec_original.shape: {rec_original.shape}, rec_Gaussian.shape: {rec_Gaussian.shape}")
-            return rec_original, rec_Gaussian, x_Gaussian
+        return rec
 
     def get_feature_dim_down(self, x):
         x = self.siglip_feature_proj(x)
