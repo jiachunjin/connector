@@ -12,6 +12,7 @@ class DiTClassConditional(nn.Module):
         self.depth = config.depth
         self.x_dim = config.x_dim
         self.grid_size = config.grid_size
+        self.num_classes = config.num_classes
 
         self.x_proj = nn.Linear(self.x_dim, self.hidden_size)
         self.y_embedder = LabelEmbedder(config.num_classes, config.hidden_size)
@@ -34,6 +35,10 @@ class DiTClassConditional(nn.Module):
         B, L, d = x_t.shape
         pos = self.fetch_pos(self.grid_size, self.grid_size, x_t.device)
         x = self.x_proj(x_t)
+        if self.training:
+            # make y=self.num_classes with probability 0.1
+            y = torch.where(torch.rand_like(y) < 0.1, torch.full_like(y, self.num_classes), y)
+            
         y = self.y_embedder(y)
         t = self.t_embedder(t, x_t.dtype)
         c = t + y

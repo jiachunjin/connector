@@ -121,7 +121,7 @@ def main(args):
                 with torch.no_grad():
                     feature = extractor(x).to(dtype)
                     x_0 = decoder.get_feature_dim_down(feature)
-                    x_0 *= config.decoder.scale_factor
+                    x_0 *= config.dit.scale_factor
                 
                 print(x_0.shape, x_0.min(), x_0.max())
 
