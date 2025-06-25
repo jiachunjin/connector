@@ -131,7 +131,7 @@ def main(args):
                     rec, rec_Gaussian, x_Gaussian = decoder(feature)
                     # ---------- train autoencoder ----------
                     loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
-                    loss_rec_Gaussian, :loss_rec_dict_Gaussian = rec_loss(x, rec_Gaussian, global_step, "generator")
+                    loss_rec_Gaussian, loss_rec_dict_Gaussian = rec_loss(x, rec_Gaussian, global_step, "generator")
                     loss_kl_reg = 0.5 * torch.norm(x_Gaussian, p=2, dim=-1).pow(2).mean()
                     
                     optimizer.zero_grad()
