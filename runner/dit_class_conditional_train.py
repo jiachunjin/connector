@@ -42,6 +42,7 @@ def main(args):
     decoder = get_decoder(config.decoder)
     if config.decoder.pretrained_path is not None:
         decoder.load_state_dict(torch.load(config.decoder.pretrained_path, map_location="cpu", weights_only=True), strict=True)
+        accelerator.print(f"Loaded decoder from {config.decoder.pretrained_path}")
     else:
         accelerator.print("Warning: No pretrained path provided !!!")
     decoder.eval()

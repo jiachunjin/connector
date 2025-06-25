@@ -26,7 +26,7 @@ dit:
   num_heads: 16
   depth: 16
   num_classes: 1000
-  scale_factor: 0.25
+  scale_factor: 1
 
 decoder:
   pretrained_path: "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32/Decoder-decoder-140k"

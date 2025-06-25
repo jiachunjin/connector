@@ -35,8 +35,8 @@ class DiTClassConditional(nn.Module):
         B, L, d = x_t.shape
         pos = self.fetch_pos(self.grid_size, self.grid_size, x_t.device)
         x = self.x_proj(x_t)
-        if self.training:
-            y = torch.where(torch.rand(y.shape, device=y.device, dtype=torch.float32) < 0.1, torch.full_like(y, self.num_classes), y)
+        # if self.training:
+        #     y = torch.where(torch.rand(y.shape, device=y.device, dtype=torch.float32) < 0.1, torch.full_like(y, self.num_classes), y)
             
         y = self.y_embedder(y)
         t = self.t_embedder(t, x_t.dtype)
