@@ -106,21 +106,24 @@ def main(args):
         print(f"dit dtype: {next(dit.parameters()).dtype}")
         print(f"Accelerator mixed precision: {accelerator.mixed_precision}")
 
-    num_samples = 0
     while not training_done:
         for batch in dataloader:
             if batch["pixel_values"].shape[0] == 0:
                 print("跳过空批次")
                 continue
+
             with accelerator.accumulate(dit):
                 dit.train()
             
                 x = batch["pixel_values"].to(dtype)
+                x = x * 2 - 1
                 y = batch["labels"]
                 with torch.no_grad():
-                    x_0 = extractor(x)
-                    x_0 = decoder.get_feature_dim_down(x_0)
+                    feature = extractor(x).to(dtype)
+                    x_0 = decoder.get_feature_dim_down(feature)
                     x_0 *= config.decoder.scale_factor
+                
+                print(x_0.shape, x_0.min(), x_0.max())
 
                 # Diffusion training
                 B = x_0.shape[0]

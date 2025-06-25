@@ -1,4 +1,4 @@
-machine: "g3" # [g3, ks]
+machine: "ks" # [g3, ks]
 
 train:
   root:
@@ -8,7 +8,7 @@ train:
 
   exp_name: &exp_name "dit"
   wandb_proj: *exp_name
-  output_dir: "0622_dit_siglip_32_class_conditional"
+  output_dir: "0625_dit_siglip_32_class_conditional"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
@@ -26,10 +26,10 @@ dit:
   num_heads: 16
   depth: 16
   num_classes: 1000
+  scale_factor: 0.5
 
 decoder:
-  pretrained_path:
-  scale_factor: 0.5
+  pretrained_path: "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32/Decoder-decoder-140k"
   type: "vit_pixel_decoder"
   hidden_size: 1024
   depth: 24
