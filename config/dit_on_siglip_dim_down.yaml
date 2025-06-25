@@ -12,7 +12,7 @@ train:
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
-  report_to: "no"
+  report_to: "wandb"
 
   lr: 1e-4
   num_iter: 500000
@@ -26,7 +26,7 @@ dit:
   num_heads: 16
   depth: 16
   num_classes: 1000
-  scale_factor: 0.5
+  scale_factor: 0.25
 
 decoder:
   pretrained_path: "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32/Decoder-decoder-140k"

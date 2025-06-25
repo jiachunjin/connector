@@ -122,8 +122,6 @@ def main(args):
                     feature = extractor(x).to(dtype)
                     x_0 = decoder.get_feature_dim_down(feature)
                     x_0 *= config.dit.scale_factor
-                
-                print(x_0.shape, x_0.min(), x_0.max())
 
                 # Diffusion training
                 B = x_0.shape[0]
