@@ -108,14 +108,13 @@ def main(args):
         print(f"Accelerator mixed precision: {accelerator.mixed_precision}")
 
     while not training_done:
+        dit.train()
         for batch in dataloader:
             if batch["pixel_values"].shape[0] == 0:
                 print("跳过空批次")
                 continue
 
             with accelerator.accumulate(dit):
-                dit.train()
-            
                 x = batch["pixel_values"].to(dtype)
                 x = x * 2 - 1
                 y = batch["labels"]
@@ -130,14 +129,14 @@ def main(args):
                 noise = torch.randn_like(x_0, device=accelerator.device, dtype=x_0.dtype)
                 x_t = train_scheduler.add_noise(x_0, noise, timesteps)
                 target = train_scheduler.get_velocity(x_0, noise, timesteps)
-                pred = dit(x_t, timesteps, y).to(dtype)
+                pred = dit(x_t, timesteps, y)
                 loss = torch.nn.functional.mse_loss(pred, target, reduction="mean")
 
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
-                    optimizer.zero_grad()
                     accelerator.clip_grad_norm_(params_to_learn, 1.0)
                     optimizer.step()
+                    optimizer.zero_grad()
 
                 global_step += 1
                 progress_bar.update(1)
@@ -149,7 +148,6 @@ def main(args):
                 progress_bar.set_postfix(**logs)
 
             if global_step > 0 and global_step % config.train.save_every == 0 and accelerator.is_main_process:
-                dit.eval()
                 state_dict = accelerator.unwrap_model(dit).state_dict()
                 save_path = os.path.join(output_dir, f"DiT-{config.train.exp_name}-{global_step}")
                 torch.save(state_dict, save_path)
