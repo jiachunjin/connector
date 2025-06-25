@@ -37,11 +37,11 @@ class ViTPixelDecoder(nn.Module):
         # self.conv_out = nn.Conv2d(3, 3, 3, padding=1, bias=True)
         self.conv_out = nn.Sequential(
             nn.Conv2d(3, 64, 3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(64, 128, 3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(128, 64, 3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False),
             nn.Conv2d(64, 3, 3, padding=1)
         )
         self.precompute_pos = dict()
@@ -57,14 +57,20 @@ class ViTPixelDecoder(nn.Module):
     def forward(self, x_siglip):
         B, L, D = x_siglip.shape
         pos = self.fetch_pos(self.grid_size, self.grid_size, x_siglip.device)
+        
+        # 初始化x变量
         if self.siglip_feature_dim_down is not None:
             x = self.siglip_feature_proj(x_siglip)
+        else:
+            x = x_siglip
+            
         if self.gaussian_reg:
             x_Gaussian = self.siglip_feature_proj_Gaussian(x_siglip)
             # reparametrization trick
             x_Gaussian_sample = x_Gaussian + torch.randn_like(x_Gaussian)
             x = torch.cat([x, x_Gaussian_sample], dim=0)
             print(f"After concatenation, x.shape: {x.shape}")
+        
         x = self.input_proj(x)
         x = self.norm1(x)
         for block in self.blocks:

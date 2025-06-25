@@ -121,6 +121,13 @@ class Block(nn.Module):
         self.mlp = FeedForward(hidden_size, int(hidden_size * mlp_ratio))
 
     def forward(self, x, pos, mask=None):
-        x = x + self.attn(self.norm1(x), pos, mask=mask)
-        x = x + self.mlp(self.norm2(x))
+        residual = x
+        x = self.norm1(x)
+        x = self.attn(x, pos, mask=mask)
+        x = residual + x
+        
+        residual = x
+        x = self.norm2(x)
+        x = self.mlp(x)
+        x = residual + x
         return x

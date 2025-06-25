@@ -50,7 +50,7 @@ def main(args):
         if config.train.skipped_keys:
             ckpt = {k: v for k, v in ckpt.items() if k not in config.train.skipped_keys}
         m, u = decoder.load_state_dict(ckpt, strict=False)
-        accelerator.print(f"Loaded {m} modules and {u} unmatch modules")
+        accelerator.print(f"Missing {m} modules and {u} unmatch modules")
     if config.train.resume_path_recloss is not None:
         ckpt = torch.load(config.train.resume_path_recloss, map_location="cpu", weights_only=True)
         rec_loss.load_state_dict(ckpt, strict=True)
@@ -131,7 +131,7 @@ def main(args):
                     rec, rec_Gaussian, x_Gaussian = decoder(feature)
                     # ---------- train autoencoder ----------
                     loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
-                    loss_rec_Gaussian, loss_rec_dict_Gaussian = rec_loss(x, rec_Gaussian, global_step, "generator")
+                    loss_rec_Gaussian, :loss_rec_dict_Gaussian = rec_loss(x, rec_Gaussian, global_step, "generator")
                     loss_kl_reg = 0.5 * torch.norm(x_Gaussian, p=2, dim=-1).pow(2).mean()
                     
                     optimizer.zero_grad()
