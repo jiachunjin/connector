@@ -14,6 +14,7 @@ from model.decoder import get_decoder
 from model.loss.rec_loss import RecLoss
 from util.misc import process_path_for_different_machine, flatten_dict
 from util.dataloader import get_dataloader
+from util.ema import EMA
 from janus.models import MultiModalityCausalLM
 
 
@@ -111,6 +112,9 @@ def main(args):
         print(f"extractor dtype: {next(extractor.parameters()).dtype}")
         print(f"Accelerator mixed precision: {accelerator.mixed_precision}")
 
+    if accelerator.is_main_process:
+        ema = EMA(decoder.module, decay=0.999)
+
     while not training_done:
         for batch in dataloader:
             # 检查批次是否为空
@@ -138,6 +142,8 @@ def main(args):
                     accelerator.clip_grad_norm_(params_to_learn, 1.0)
                 optimizer.step()
 
+                if accelerator.is_main_process:
+                    ema.update(decoder.module)
                 # ---------- train discriminator ----------
                 loss_disc, loss_disc_dict = rec_loss(x, rec, global_step, "discriminator")
 
@@ -167,6 +173,9 @@ def main(args):
 
                 state_dict = accelerator.unwrap_model(rec_loss).state_dict()
                 torch.save(state_dict, os.path.join(output_dir, f"Loss-{config.train.exp_name}-{global_step // 1000}k"))
+
+                ema_path = os.path.join(output_dir, f"EMA-{config.train.exp_name}-{global_step // 1000}k")
+                ema.save_shadow(ema_path)
 
             accelerator.wait_for_everyone()
 

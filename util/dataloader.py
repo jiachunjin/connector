@@ -276,7 +276,7 @@ def get_imagenet_wds_val_dataloader(config):
 
         dataloader = DataLoader(
             safe_dataset,
-            batch_size  = config.batch_size,
+            batch_size  = 1,
             collate_fn  = collate_fn_imagenet_wds_val,
             shuffle     = False,
             num_workers = config.num_workers,
