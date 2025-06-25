@@ -10,7 +10,7 @@ train:
   wandb_proj: *exp_name
   output_dir: "0625_dit_siglip_32_class_conditional"
   logging_dir: "logs"
-  mixed_precision: "bf16"
+  mixed_precision: "no"
   gradient_accumulation_steps: 1
   report_to: "wandb"
 
@@ -44,6 +44,6 @@ data:
   name: "imagenet_wds"
   train_path:
   siglip_preprocess: false
-  batch_size: 120
+  batch_size: 90
   num_workers: 0
   img_size: 384
