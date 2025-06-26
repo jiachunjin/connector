@@ -51,7 +51,7 @@ def main(args):
         if config.train.skipped_keys:
             ckpt = {k: v for k, v in ckpt.items() if k not in config.train.skipped_keys}
         m, u = decoder.load_state_dict(ckpt, strict=False)
-        accelerator.print(f"Missing {m} modules and {u} unmatch modules")
+        accelerator.print(f"Missed {m} modules and {u} unmatch modules")
     if config.train.resume_path_recloss is not None:
         ckpt = torch.load(config.train.resume_path_recloss, map_location="cpu", weights_only=True)
         rec_loss.load_state_dict(ckpt, strict=True)

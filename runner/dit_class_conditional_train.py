@@ -59,7 +59,7 @@ def main(args):
         if config.train.skipped_keys:
             ckpt = {k: v for k, v in ckpt.items() if k not in config.train.skipped_keys}
         m, u = dit.load_state_dict(ckpt, strict=False)
-        accelerator.print(f"Loaded {m} modules and {u} unmatch modules")
+        accelerator.print(f"Missed {m} modules and {u} unmatch modules")
 
     global_step = config.train.global_step if config.train.global_step is not None else 0
     params_to_learn = list(dit.parameters())
