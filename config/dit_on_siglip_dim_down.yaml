@@ -2,9 +2,9 @@ machine: "ks" # [g3, ks]
 
 train:
   root:
-  resume_path:
+  resume_path: "/data/phd/jinjiachun/experiment/dit/0625_dit_siglip_32_class_conditional/DiT-dit-30000"
   skipped_keys:
-  global_step:
+  global_step: 30000
 
   exp_name: &exp_name "dit"
   wandb_proj: *exp_name
