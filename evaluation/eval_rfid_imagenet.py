@@ -21,9 +21,9 @@ dataloader = get_imagenet_wds_val_dataloader(config.data)
 
 autoencoder = AutoEncoder(config)
 
-ckpt_path = os.path.join(exp_dir, "Decoder-decoder-140k")
-print(f"Loading decoder from {ckpt_path}")
+ckpt_path = os.path.join(exp_dir, "EMA-decoder-175k")
 autoencoder.decoder.load_state_dict(torch.load(ckpt_path, map_location="cpu", weights_only=True), strict=True)
+print(f"Loading decoder from {ckpt_path}")
 autoencoder.eval()
 
 accelerator = Accelerator()
