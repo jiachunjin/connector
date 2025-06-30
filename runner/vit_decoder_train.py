@@ -13,7 +13,7 @@ from tqdm import tqdm
 from model.decoder import get_decoder
 from model.loss.rec_loss import RecLoss
 from util.misc import process_path_for_different_machine, flatten_dict
-from util.dataloader import get_dataloader
+from util.dataloader import get_dataloader, get_imagenet_wds_val_dataloader
 from util.ema import EMA
 from janus.models import MultiModalityCausalLM
 
@@ -45,7 +45,7 @@ def main(args):
     extractor = janus.vision_model
     rec_loss = RecLoss(config.rec_loss)
     dataloader = get_dataloader(config.data)
-
+    dataloader_val = get_imagenet_wds_val_dataloader(config.data)
     if config.train.resume_path_decoder is not None:
         ckpt = torch.load(config.train.resume_path_decoder, map_location="cpu", weights_only=True)
         if config.train.skipped_keys:
@@ -83,7 +83,7 @@ def main(args):
     else:
         dtype = torch.float32
 
-    decoder, rec_loss, dataloader, optimizer, optimizer_disc = accelerator.prepare(decoder, rec_loss, dataloader, optimizer, optimizer_disc)
+    decoder, rec_loss, dataloader, dataloader_val, optimizer, optimizer_disc = accelerator.prepare(decoder, rec_loss, dataloader, dataloader_val, optimizer, optimizer_disc)
     extractor = extractor.to(accelerator.device, dtype).eval()
     decoder = decoder.to(dtype)
     rec_loss = rec_loss.to(dtype)
@@ -176,7 +176,48 @@ def main(args):
 
                 ema_path = os.path.join(output_dir, f"EMA-{config.train.exp_name}-{global_step // 1000}k")
                 ema.save_shadow(ema_path)
+            
+            if global_step > 0 and global_step % config.train.val_every == 0:
+                decoder.eval()
+                import torch_fidelity
+                import torchvision.transforms as pth_transforms
+                from evaluation.eval_rfid_imagenet_basic import AutoEncoder
+                autoencoder = AutoEncoder()
+                autoencoder.encoder = extractor
+                autoencoder.decoder = decoder
+                autoencoder.to(accelerator.device)
+                autoencoder.eval()
 
+                rank = accelerator.state.local_process_index
+                world_size = accelerator.state.num_processes
+
+                with torch.no_grad():
+                    for i, batch in tqdm(enumerate(dataloader_val)):
+                        x = batch["pixel_values"]
+                        x = x * 2 - 1
+                        rec = autoencoder.forward_with_feature_dim_down(x)
+
+                        x = ((x + 1) / 2).clamp(0, 1)
+                        rec = ((rec + 1) / 2).clamp(0, 1)
+
+                        rec = pth_transforms.ToPILImage()(rec.cpu().squeeze(0))
+                        rec.save(f"evaluation/rec_img/{rank}_{i}.png")
+
+                accelerator.wait_for_everyone()
+                if accelerator.is_main_process:
+                    metrics_dict = torch_fidelity.calculate_metrics(
+                        input1  = "evaluation/ori_img",
+                        input2  = "evaluation/rec_img",
+                        cuda    = True,
+                        isc     = True,
+                        fid     = True,
+                        kid     = True,
+                        prc     = True,
+                        verbose = True,
+                    )
+                    print(f"global_step: {global_step}")
+                    print(metrics_dict)
+                    accelerator.log(metrics_dict, step=global_step)
             accelerator.wait_for_everyone()
 
             if global_step >= config.train.num_iter:

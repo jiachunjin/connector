@@ -5,11 +5,15 @@ from model.decoder.vit_pixel_decoder import ViTPixelDecoder
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config=None):
         super().__init__()
-        self.config = config
-        self.encoder = MultiModalityCausalLM.from_pretrained(config.janus_path, trust_remote_code=True).vision_model
-        self.decoder = ViTPixelDecoder(config.decoder)
+        if config is not None:
+            self.config = config
+            self.encoder = MultiModalityCausalLM.from_pretrained(config.janus_path, trust_remote_code=True).vision_model
+            self.decoder = ViTPixelDecoder(config.decoder)
+        else:
+            self.encoder = None
+            self.decoder = None
 
     def encode(self, x):
         return self.encoder(x)
