@@ -271,9 +271,11 @@ def get_dataloader(config):
             # num_proc   = 8,
             streaming  = True,
         )
+
+        safe_dataset = SafeImageDataset(dataset)
         
         dataloader = DataLoader(
-            dataset,
+            safe_dataset,
             batch_size  = config.batch_size,
             collate_fn  = collate_fn_imagenet_wds_train,
             # shuffle     = True,
