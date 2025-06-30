@@ -52,7 +52,7 @@ class SafeImageDataset(Dataset):
         if self._is_iterable:
             # 对于 IterableDataset，返回一个大的数字作为长度
             # 这只是一个占位符，实际长度在迭代时确定
-            return 1000000  # 返回一个足够大的数字
+            return 10000000  # 返回一个足够大的数字
         return len(self.dataset)
     
     def __iter__(self):
@@ -124,9 +124,10 @@ class SafeImageDataset(Dataset):
                     print("跳过无效样本")
                     continue
             except StopIteration:
-                # 重新初始化迭代器
+                # 重新初始化迭代器，静默地重新开始迭代
+                print("数据集迭代结束，重新开始迭代")
                 self._dataset_iter = iter(self.dataset)
-                raise RuntimeError("数据集迭代结束")
+                continue
             except Exception as e:
                 print(f"处理样本时出错: {e}")
                 continue
@@ -165,8 +166,22 @@ class SafeImageDataset(Dataset):
                     except Exception:
                         self.invalid_indices.add(i)
         
-        # 如果都找不到，返回一个默认样本或抛出异常
-        raise RuntimeError(f"无法找到有效样本，当前索引: {current_idx}")
+        # 如果都找不到，重新开始查找或返回第一个有效样本
+        print(f"无法找到有效样本，当前索引: {current_idx}，重新开始查找")
+        # 清空无效索引，重新开始
+        self.invalid_indices.clear()
+        # 尝试返回第一个样本
+        try:
+            sample = self.dataset[0]
+            if self._is_valid_sample(sample):
+                self.valid_indices.add(0)
+                return sample
+        except Exception:
+            pass
+        
+        # 如果还是找不到，返回一个空样本或继续循环
+        print("警告：无法找到任何有效样本，返回空样本")
+        return {"jpg": None, "cls": 0}  # 返回一个默认的空样本
 
 def safe_load_image(image_data):
     """安全地加载图像，处理EXIF错误"""
