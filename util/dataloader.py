@@ -374,7 +374,7 @@ def get_dataloader(config):
 
 def get_imagenet_wds_val_dataloader(config):
     if config.name == "imagenet_wds":
-        data_files = glob.glob(os.path.join(config.train_path, "*validation*.tar"))
+        data_files = glob.glob(os.path.join("/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds", "*validation*.tar"))
 
         imagenet_wds_val = load_dataset(
             "webdataset",
