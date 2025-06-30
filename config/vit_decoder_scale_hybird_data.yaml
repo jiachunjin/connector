@@ -17,7 +17,7 @@ train:
   lr: 1e-4
   lr_disc: 5e-5
   num_iter: 500000
-  save_every: 5000
+  save_every: 10000
 
 decoder:
   type: "vit_pixel_decoder"
@@ -44,6 +44,6 @@ data:
   name: "hybrid"
   train_path:
   siglip_preprocess: false
-  batch_size: 28
+  batch_size: 25
   num_workers: 8
   img_size: 384
