@@ -184,7 +184,7 @@ def main(args):
                 from evaluation.eval_rfid_imagenet_basic import AutoEncoder
                 autoencoder = AutoEncoder()
                 autoencoder.encoder = extractor
-                autoencoder.decoder = decoder
+                autoencoder.decoder = decoder.module
                 autoencoder.to(accelerator.device)
                 autoencoder.eval()
 
