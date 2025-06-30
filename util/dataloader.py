@@ -276,9 +276,9 @@ def get_dataloader(config):
             dataset,
             batch_size  = config.batch_size,
             collate_fn  = collate_fn_imagenet_wds_train,
-            shuffle     = True,
+            # shuffle     = True,
             num_workers = config.num_workers,
-            drop_last   = True,
+            # drop_last   = True,
             persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
         )
         
