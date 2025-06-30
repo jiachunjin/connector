@@ -187,6 +187,7 @@ def main(args):
                 autoencoder.decoder = decoder.module
                 autoencoder.to(accelerator.device)
                 autoencoder.eval()
+                autoencoder.to(torch.float32)
 
                 rank = accelerator.state.local_process_index
                 world_size = accelerator.state.num_processes
@@ -194,7 +195,7 @@ def main(args):
                 with torch.no_grad():
                     for i, batch in tqdm(enumerate(dataloader_val)):
                         x = batch["pixel_values"]
-                        x = x.to(device=accelerator.device, dtype=dtype)
+                        x = x.to(device=accelerator.device, dtype=torch.float32)
                         x = x * 2 - 1
                         rec = autoencoder.forward_with_feature_dim_down(x)
 
