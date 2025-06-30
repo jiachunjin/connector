@@ -31,13 +31,13 @@ class ViTPixelDecoder(nn.Module):
         )
         # self.conv_out = nn.Conv2d(3, 3, 3, padding=1, bias=True)
         self.conv_out = nn.Sequential(
-            nn.Conv2d(3, 64, 3, padding=1),
-            nn.ReLU(inplace=False),
-            nn.Conv2d(64, 128, 3, padding=1),
-            nn.ReLU(inplace=False),
-            nn.Conv2d(128, 64, 3, padding=1),
-            nn.ReLU(inplace=False),
-            nn.Conv2d(64, 3, 3, padding=1)
+            nn.Conv2d(3, 64, 3, padding=1, bias=True),
+            nn.SiLU(inplace=False),
+            nn.Conv2d(64, 128, 3, padding=1, bias=True),
+            nn.SiLU(inplace=False),
+            nn.Conv2d(128, 64, 3, padding=1, bias=True),
+            nn.SiLU(inplace=False),
+            nn.Conv2d(64, 3, 3, padding=1, bias=True)
         )
         self.precompute_pos = dict()
 
