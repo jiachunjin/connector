@@ -2,7 +2,7 @@ machine: "ks" # [g3, ks]
 train:
   root:
   resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Decoder-decoder-10k"
-  skipped_keys:
+  skipped_keys: ["conv_out.0.weight", "conv_out.0.bias", "conv_out.2.weight", "conv_out.2.bias", "conv_out.4.weight", "conv_out.4.bias", "conv_out.6.weight", "conv_out.6.bias"]
   resume_path_recloss: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Loss-decoder-10k"
   global_step: 10000
 
