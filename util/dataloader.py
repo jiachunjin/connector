@@ -373,28 +373,27 @@ def get_dataloader(config):
         
 
 def get_imagenet_wds_val_dataloader(config):
-    if config.name == "imagenet_wds":
-        data_files = glob.glob(os.path.join("/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds", "*validation*.tar"))
+    data_files = glob.glob(os.path.join("/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds", "*validation*.tar"))
 
-        imagenet_wds_val = load_dataset(
-            "webdataset",
-            data_files = data_files,
-            split      = "train",
-            num_proc   = 8,
-            streaming  = False,  # 确保不使用流式加载以避免EXIF错误
-        )
+    imagenet_wds_val = load_dataset(
+        "webdataset",
+        data_files = data_files,
+        split      = "train",
+        num_proc   = 8,
+        streaming  = False,  # 确保不使用流式加载以避免EXIF错误
+    )
 
-        # 使用安全的数据集包装器
-        safe_dataset = SafeImageDataset(imagenet_wds_val)
+    # 使用安全的数据集包装器
+    safe_dataset = SafeImageDataset(imagenet_wds_val)
 
-        dataloader = DataLoader(
-            safe_dataset,
-            batch_size  = 1,
-            collate_fn  = collate_fn_imagenet_wds_val,
-            shuffle     = False,
-            num_workers = config.num_workers,
-            drop_last   = False,
-            persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
-        )
+    dataloader = DataLoader(
+        safe_dataset,
+        batch_size  = 1,
+        collate_fn  = collate_fn_imagenet_wds_val,
+        shuffle     = False,
+        num_workers = config.num_workers,
+        drop_last   = False,
+        persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
+    )
 
-        return dataloader
+    return dataloader
