@@ -25,7 +25,7 @@ def get_accelerator(config):
     return accelerator, output_dir
 
 def main():
-    config = OmegaConf.load("config/dit_on_siglip_dim_down.yaml")
+    config = OmegaConf.load("config/vit_decoder_scale_hybird_data.yaml")
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
 

@@ -1,7 +1,7 @@
 import torch
 import glob
 from datasets import load_dataset
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, IterableDataset
 import torchvision.transforms as pth_transforms
 import os
 import warnings
@@ -21,6 +21,7 @@ class SafeImageDataset(Dataset):
         self.dataset = dataset
         self.valid_indices = set()  # 使用set来记录已验证的索引
         self.invalid_indices = set()  # 使用set来记录无效的索引
+        self._is_iterable = hasattr(dataset, '__iter__') and not hasattr(dataset, '__len__')
     
     def _is_valid_sample(self, sample):
         """检查样本是否有效"""
@@ -47,9 +48,41 @@ class SafeImageDataset(Dataset):
             return False
     
     def __len__(self):
+        if self._is_iterable:
+            # 对于 IterableDataset，返回一个大的数字作为长度
+            # 这只是一个占位符，实际长度在迭代时确定
+            return 1000000  # 返回一个足够大的数字
         return len(self.dataset)
     
+    def __iter__(self):
+        """支持迭代，用于 IterableDataset"""
+        if self._is_iterable:
+            return self._iter_valid_samples()
+        else:
+            # 对于普通 Dataset，返回一个迭代器
+            return iter([self[i] for i in range(len(self))])
+    
+    def _iter_valid_samples(self):
+        """迭代有效样本"""
+        while True:
+            try:
+                sample = next(self.dataset)
+                if self._is_valid_sample(sample):
+                    yield sample
+                else:
+                    print("跳过无效样本")
+                    continue
+            except StopIteration:
+                break
+            except Exception as e:
+                print(f"处理样本时出错: {e}")
+                continue
+    
     def __getitem__(self, idx):
+        if self._is_iterable:
+            # 对于 IterableDataset，直接返回下一个有效样本
+            return self._get_next_valid_sample_iterable()
+        
         # 如果已经知道这个索引是无效的，跳过
         if idx in self.invalid_indices:
             # 返回下一个有效样本
@@ -72,6 +105,22 @@ class SafeImageDataset(Dataset):
             print(f"样本 {idx} 验证失败: {e}")
             self.invalid_indices.add(idx)
             return self._get_next_valid_sample(idx)
+    
+    def _get_next_valid_sample_iterable(self):
+        """获取 IterableDataset 的下一个有效样本"""
+        while True:
+            try:
+                sample = next(self.dataset)
+                if self._is_valid_sample(sample):
+                    return sample
+                else:
+                    print("跳过无效样本")
+                    continue
+            except StopIteration:
+                raise RuntimeError("数据集迭代结束")
+            except Exception as e:
+                print(f"处理样本时出错: {e}")
+                continue
     
     def _get_next_valid_sample(self, current_idx):
         """获取下一个有效样本"""
@@ -274,15 +323,27 @@ def get_dataloader(config):
 
         safe_dataset = SafeImageDataset(dataset)
         
-        dataloader = DataLoader(
-            safe_dataset,
-            batch_size  = config.batch_size,
-            collate_fn  = collate_fn_imagenet_wds_train,
-            # shuffle     = True,
-            num_workers = config.num_workers,
-            # drop_last   = True,
-            persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
-        )
+        # 对于 IterableDataset，使用不同的配置
+        if safe_dataset._is_iterable:
+            dataloader = DataLoader(
+                safe_dataset,
+                batch_size  = config.batch_size,
+                collate_fn  = collate_fn_imagenet_wds_train,
+                shuffle     = False,  # IterableDataset 不支持 shuffle
+                num_workers = 0,      # IterableDataset 通常不使用多进程
+                drop_last   = False,
+                persistent_workers = False,
+            )
+        else:
+            dataloader = DataLoader(
+                safe_dataset,
+                batch_size  = config.batch_size,
+                collate_fn  = collate_fn_imagenet_wds_train,
+                shuffle     = True,
+                num_workers = config.num_workers,
+                drop_last   = True,
+                persistent_workers = True if config.num_workers > 0 else False,
+            )
         
         return dataloader
         
