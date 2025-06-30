@@ -12,7 +12,7 @@ from evaluation.eval_rfid_imagenet_basic import AutoEncoder
 from tqdm import tqdm
 
 # exp_dir = "/data/phd/jinjiachun/experiment/decoder/0619_decoder"
-exp_dir = "/data/phd/jinjiachun/experiment/decoder/0621_decoder_dim_down_32"
+exp_dir = "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale"
 config_path = os.path.join(exp_dir, "config.yaml")
 config = OmegaConf.load(config_path)
 config.data.batch_size = 1
@@ -21,7 +21,7 @@ dataloader = get_imagenet_wds_val_dataloader(config.data)
 
 autoencoder = AutoEncoder(config)
 
-ckpt_path = os.path.join(exp_dir, "EMA-decoder-175k")
+ckpt_path = os.path.join(exp_dir, "EMA-decoder-340k")
 autoencoder.decoder.load_state_dict(torch.load(ckpt_path, map_location="cpu", weights_only=True), strict=True)
 print(f"Loading decoder from {ckpt_path}")
 autoencoder.eval()
