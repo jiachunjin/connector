@@ -1,10 +1,10 @@
 machine: "ks" # [g3, ks]
 train:
   root:
-  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Decoder-decoder-10k"
-  skipped_keys: ["conv_out.0.weight", "conv_out.0.bias", "conv_out.3.weight", "conv_out.3.bias", "conv_out.6.weight", "conv_out.6.bias", "conv_out.9.weight", "conv_out.9.bias"]
-  resume_path_recloss: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Loss-decoder-10k"
-  global_step: 10000
+  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Decoder-decoder-20k"
+  skipped_keys:
+  resume_path_recloss: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Loss-decoder-20k"
+  global_step: 20000
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
@@ -17,8 +17,8 @@ train:
   lr: 1e-4
   lr_disc: 5e-6
   num_iter: 500000
-  save_every: 5000
-  val_every: 5000
+  save_every: 10000
+  val_every: 10000
 
 decoder:
   type: "vit_pixel_decoder"
