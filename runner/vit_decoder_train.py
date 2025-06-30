@@ -204,7 +204,6 @@ def main(args):
 
                         rec = pth_transforms.ToPILImage()(rec.cpu().squeeze(0))
                         rec.save(f"evaluation/rec_img/{rank}_{i}.png")
-                        break
 
                 accelerator.wait_for_everyone()
                 if accelerator.is_main_process:

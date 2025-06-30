@@ -18,7 +18,7 @@ train:
   lr_disc: 5e-6
   num_iter: 500000
   save_every: 10000
-  val_every: 3
+  val_every: 10000
 
 decoder:
   type: "vit_pixel_decoder"
