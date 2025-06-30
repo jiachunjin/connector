@@ -258,6 +258,32 @@ def get_dataloader(config):
         )
         
         return dataloader
+    elif config.name == "hybrid":
+        data_files = []
+        for path in config.train_path:
+            data_files.extend(glob.glob(os.path.join(path, "*.tar")))
+        print(f"Found {len(data_files)} tar files")
+
+        dataset = load_dataset(
+            "webdataset",
+            data_files = data_files,
+            split      = "train",
+            num_proc   = 8,
+            streaming  = True,
+        )
+        
+        dataloader = DataLoader(
+            dataset,
+            batch_size  = config.batch_size,
+            collate_fn  = collate_fn_imagenet_wds_train,
+            shuffle     = True,
+            num_workers = config.num_workers,
+            drop_last   = True,
+            persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
+        )
+        
+        return dataloader
+        
 
 def get_imagenet_wds_val_dataloader(config):
     if config.name == "imagenet_wds":

@@ -6,7 +6,15 @@ def process_path_for_different_machine(config):
     elif config.machine == "ks":
         config.train.root = "/data/phd/jinjiachun/experiment"
         config.janus_path = "/data/phd/jinjiachun/ckpt/deepseek-ai/Janus-Pro-1B"
-        config.data.train_path = "/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds"
+        if config.data.name == "imagenet_wds":
+            config.data.train_path = "/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds"
+        elif config.data.name == "hybrid":
+            config.data.train_path = ["/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds",
+                                      "/data/phd/jinjiachun/dataset/timm/imagenet-22k-wds",
+                                      "/data/phd/jinjiachun/dataset/timm/BLIP3o",
+                                      "/data/phd/jinjiachun/dataset/BLIP3o/BLIP3o-Pretrain-Long-Caption",
+                                      "/data/phd/jinjiachun/dataset/BLIP3o/BLIP3o-Pretrain-Short-Caption",
+                                      ]
     else:
         raise ValueError(f"Invalid machine: {config.machine}")
 
