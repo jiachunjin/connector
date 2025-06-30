@@ -22,6 +22,7 @@ class SafeImageDataset(Dataset):
         self.valid_indices = set()  # 使用set来记录已验证的索引
         self.invalid_indices = set()  # 使用set来记录无效的索引
         self._is_iterable = hasattr(dataset, '__iter__') and not hasattr(dataset, '__len__')
+        self._dataset_iter = None  # 用于 IterableDataset 的迭代器
     
     def _is_valid_sample(self, sample):
         """检查样本是否有效"""
@@ -64,9 +65,11 @@ class SafeImageDataset(Dataset):
     
     def _iter_valid_samples(self):
         """迭代有效样本"""
+        # 创建一个新的迭代器，避免共享状态
+        dataset_iter = iter(self.dataset)
         while True:
             try:
-                sample = next(self.dataset)
+                sample = next(dataset_iter)
                 if self._is_valid_sample(sample):
                     yield sample
                 else:
@@ -108,15 +111,21 @@ class SafeImageDataset(Dataset):
     
     def _get_next_valid_sample_iterable(self):
         """获取 IterableDataset 的下一个有效样本"""
+        # 确保迭代器已初始化
+        if self._dataset_iter is None:
+            self._dataset_iter = iter(self.dataset)
+        
         while True:
             try:
-                sample = next(self.dataset)
+                sample = next(self._dataset_iter)
                 if self._is_valid_sample(sample):
                     return sample
                 else:
                     print("跳过无效样本")
                     continue
             except StopIteration:
+                # 重新初始化迭代器
+                self._dataset_iter = iter(self.dataset)
                 raise RuntimeError("数据集迭代结束")
             except Exception as e:
                 print(f"处理样本时出错: {e}")
