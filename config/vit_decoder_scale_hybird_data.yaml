@@ -38,12 +38,12 @@ rec_loss:
   lecam_regularization_weight: 0.001
 
   discriminator_factor: 1.0
-  discriminator_start_iter: 10000
+  discriminator_start_iter: 1000
 
 data:
   name: "hybrid"
   train_path:
   siglip_preprocess: false
-  batch_size: 25
+  batch_size: 30
   num_workers: 8
   img_size: 384
