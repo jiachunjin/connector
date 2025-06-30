@@ -204,6 +204,7 @@ def main(args):
 
                         rec = pth_transforms.ToPILImage()(rec.cpu().squeeze(0))
                         rec.save(f"evaluation/rec_img/{rank}_{i}.png")
+                        break
 
                 accelerator.wait_for_everyone()
                 if accelerator.is_main_process:
@@ -220,6 +221,7 @@ def main(args):
                     print(f"global_step: {global_step}")
                     print(metrics_dict)
                     accelerator.log(metrics_dict, step=global_step)
+            autoencoder.to(dtype)
             accelerator.wait_for_everyone()
 
             if global_step >= config.train.num_iter:
