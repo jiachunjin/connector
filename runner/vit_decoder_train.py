@@ -221,7 +221,7 @@ def main(args):
                     print(f"global_step: {global_step}")
                     print(metrics_dict)
                     accelerator.log(metrics_dict, step=global_step)
-            autoencoder.to(dtype)
+                autoencoder.to(dtype)
             accelerator.wait_for_everyone()
 
             if global_step >= config.train.num_iter:
