@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from util.dataloader import get_dataloader
+from util.dataloader import get_dataloader, get_dataloader_test
 from omegaconf import OmegaConf
 from accelerate import Accelerator
 from accelerate.utils import ProjectConfiguration
@@ -29,7 +29,7 @@ def main():
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
 
-    dataloader = get_dataloader(config.data)
+    dataloader = get_dataloader_test(config.data)
 
     dataloader = accelerator.prepare(dataloader)
 

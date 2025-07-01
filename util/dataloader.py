@@ -370,7 +370,39 @@ def get_dataloader(config):
             )
         
         return dataloader
-        
+
+def get_dataloader_test(config):
+    data_files = []
+    for path in config.train_path:
+        data_files.extend(glob.glob(os.path.join(path, "*.tar")))
+    print(f"Found {len(data_files)} tar files")
+
+    ds = load_dataset("webdataset", data_files=data_files, split="train", streaming=True)
+    dataloader = DataLoader(ds, batch_size=256, num_workers=8, collate_fn=collate_fn_test, drop_last=True, persistent_workers=True)
+
+    return dataloader
+
+
+def collate_fn_test(batch):
+    pixel_values = []
+    labels = []
+    try:
+        for sample in batch:
+            jpg_data = sample["jpg"]
+            pixel_value = imagenet_transform_train(jpg_data)
+            pixel_values.append(pixel_value)
+            labels.append(sample["cls"])
+    except Exception as e:
+        print("处理样本时出错", e)
+
+    if len(pixel_values) == 0:
+        print(f"批次中所有图像都被跳过")
+        return {"pixel_values": torch.empty(0, 3, 384, 384), "labels": torch.empty(0)}
+    
+    pixel_values = torch.stack(pixel_values, dim=0)
+    labels = torch.tensor(labels, dtype=torch.int32)
+    
+    return {"pixel_values": pixel_values, "labels": labels}
 
 def get_imagenet_wds_val_dataloader(config):
     data_files = glob.glob(os.path.join("/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds", "*validation*.tar"))
