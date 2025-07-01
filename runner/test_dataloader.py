@@ -49,6 +49,8 @@ def main():
                 print("跳过空批次")
                 continue
             num_samples += batch["pixel_values"].shape[0]
+            if num_samples % 100000 == 0:
+                print(f"num_samples: {num_samples}")
 
             if accelerator.sync_gradients:
                 global_step += 1
