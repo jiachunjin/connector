@@ -1,10 +1,10 @@
 machine: "ks" # [g3, ks]
 train:
   root:
-  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Decoder-decoder-70k"
-  skipped_keys: ['conv_out.0.weight', 'conv_out.0.bias', 'conv_out.1.weight', 'conv_out.1.bias', 'conv_out.1.running_mean', 'conv_out.1.running_var', 'conv_out.1.num_batches_tracked', 'conv_out.3.weight', 'conv_out.3.bias', 'conv_out.4.weight', 'conv_out.4.bias', 'conv_out.4.running_mean', 'conv_out.4.running_var', 'conv_out.4.num_batches_tracked', 'conv_out.6.weight', 'conv_out.6.bias', 'conv_out.7.weight', 'conv_out.7.bias', 'conv_out.7.running_mean', 'conv_out.7.running_var', 'conv_out.7.num_batches_tracked', 'conv_out.9.weight', 'conv_out.9.bias']
-  resume_path_recloss:
-  global_step: 70000
+  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Decoder-decoder-80k"
+  skipped_keys:
+  resume_path_recloss: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Loss-decoder-80k"
+  global_step: 80000
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
