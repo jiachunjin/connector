@@ -52,7 +52,7 @@ class SafeImageDataset(Dataset):
         if self._is_iterable:
             # 对于 IterableDataset，返回一个大的数字作为长度
             # 这只是一个占位符，实际长度在迭代时确定
-            return 10000000  # 返回一个足够大的数字
+            return 15000000  # 返回一个足够大的数字
         return len(self.dataset)
     
     def __iter__(self):
@@ -378,6 +378,7 @@ def get_dataloader_test(config):
     print(f"Found {len(data_files)} tar files")
 
     ds = load_dataset("webdataset", data_files=data_files, split="train", streaming=True)
+    ds = SafeImageDataset(ds)
     dataloader = DataLoader(ds, batch_size=256, num_workers=8, collate_fn=collate_fn_test, drop_last=True, persistent_workers=True)
 
     return dataloader
