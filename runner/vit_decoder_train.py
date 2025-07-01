@@ -177,54 +177,54 @@ def main(args):
                 ema_path = os.path.join(output_dir, f"EMA-{config.train.exp_name}-{global_step // 1000}k")
                 ema.save_shadow(ema_path)
             
-            # if global_step > 0 and global_step % config.train.val_every == 0:
-            #     decoder.eval()
-            #     import torch_fidelity
-            #     import torchvision.transforms as pth_transforms
-            #     from evaluation.eval_rfid_imagenet_basic import AutoEncoder
-            #     autoencoder = AutoEncoder()
-            #     autoencoder.encoder = extractor
-            #     autoencoder.decoder = decoder.module
-            #     autoencoder.to(accelerator.device)
-            #     autoencoder.eval()
-            #     autoencoder.to(torch.float32)
+            if global_step > 0 and global_step % config.train.val_every == 0:
+                decoder.eval()
+                import torch_fidelity
+                import torchvision.transforms as pth_transforms
+                from evaluation.eval_rfid_imagenet_basic import AutoEncoder
+                autoencoder = AutoEncoder()
+                autoencoder.encoder = extractor
+                autoencoder.decoder = decoder.module
+                autoencoder.to(accelerator.device)
+                autoencoder.eval()
+                autoencoder.to(torch.float32)
 
-            #     rank = accelerator.state.local_process_index
-            #     world_size = accelerator.state.num_processes
+                rank = accelerator.state.local_process_index
+                world_size = accelerator.state.num_processes
 
-            #     try:
-            #         with torch.no_grad():
-            #             for i, batch in tqdm(enumerate(dataloader_val)):
-            #                 x = batch["pixel_values"]
-            #                 x = x.to(device=accelerator.device, dtype=torch.float32)
-            #                 x = x * 2 - 1
-            #                 rec = autoencoder.forward_with_feature_dim_down(x)
+                try:
+                    with torch.no_grad():
+                        for i, batch in tqdm(enumerate(dataloader_val)):
+                            x = batch["pixel_values"]
+                            x = x.to(device=accelerator.device, dtype=torch.float32)
+                            x = x * 2 - 1
+                            rec = autoencoder.forward_with_feature_dim_down(x)
 
-            #                 x = ((x + 1) / 2).clamp(0, 1)
-            #                 rec = ((rec + 1) / 2).clamp(0, 1)
+                            x = ((x + 1) / 2).clamp(0, 1)
+                            rec = ((rec + 1) / 2).clamp(0, 1)
 
-            #                 rec = pth_transforms.ToPILImage()(rec.cpu().squeeze(0))
-            #                 rec.save(f"evaluation/rec_img/{rank}_{i}.png")
+                            rec = pth_transforms.ToPILImage()(rec.cpu().squeeze(0))
+                            rec.save(f"evaluation/rec_img/{rank}_{i}.png")
 
-            #         accelerator.wait_for_everyone()
-            #         if accelerator.is_main_process:
-            #             metrics_dict = torch_fidelity.calculate_metrics(
-            #                 input1  = "evaluation/ori_img",
-            #                 input2  = "evaluation/rec_img",
-            #                 cuda    = True,
-            #                 isc     = True,
-            #                 fid     = True,
-            #                 kid     = True,
-            #                 prc     = True,
-            #                 verbose = True,
-            #             )
-            #             print(metrics_dict)
-            #             accelerator.log(metrics_dict, step=global_step)
-            #     except Exception as e:
-            #         print(f"评估过程中出现错误: {e}")
-            #         print(f"global_step: {global_step}")
-            #     autoencoder.to(dtype)
-            # accelerator.wait_for_everyone()
+                    accelerator.wait_for_everyone()
+                    if accelerator.is_main_process:
+                        metrics_dict = torch_fidelity.calculate_metrics(
+                            input1  = "evaluation/ori_img",
+                            input2  = "evaluation/rec_img",
+                            cuda    = True,
+                            isc     = True,
+                            fid     = True,
+                            kid     = True,
+                            prc     = True,
+                            verbose = True,
+                        )
+                        print(metrics_dict)
+                        accelerator.log(metrics_dict, step=global_step)
+                except Exception as e:
+                    print(f"评估过程中出现错误: {e}")
+                    print(f"global_step: {global_step}")
+                autoencoder.to(dtype)
+            accelerator.wait_for_everyone()
 
             if global_step >= config.train.num_iter:
                 training_done = True
