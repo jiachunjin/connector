@@ -45,6 +45,6 @@ data:
   name: "hybrid"
   train_path:
   siglip_preprocess: false
-  batch_size: 30
+  batch_size: 25
   num_workers: 8
   img_size: 384
