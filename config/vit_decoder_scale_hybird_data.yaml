@@ -8,7 +8,7 @@ train:
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
-  output_dir: "0626_decoder_scale_hybird_data"
+  output_dir: "0626_decoder_scale_hybird_data_noeval"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
@@ -18,7 +18,7 @@ train:
   lr_disc: 1e-5
   num_iter: 500000
   save_every: 10000
-  val_every: 10000
+  # val_every: 1000000
 
 decoder:
   type: "vit_pixel_decoder"
