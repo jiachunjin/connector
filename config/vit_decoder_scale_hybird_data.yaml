@@ -17,8 +17,8 @@ train:
   lr: 1e-4
   lr_disc: 1e-5
   num_iter: 500000
-  save_every: 5000
-  val_every: 5000
+  save_every: 10000
+  val_every: 10000
 
 decoder:
   type: "vit_pixel_decoder"
@@ -39,12 +39,12 @@ rec_loss:
   lecam_regularization_weight: 0.001
 
   discriminator_factor: 1.0
-  discriminator_start_iter: 71000
+  discriminator_start_iter: 0
 
 data:
   name: "hybrid"
   train_path:
   siglip_preprocess: false
-  batch_size: 32
+  batch_size: 30
   num_workers: 8
   img_size: 384
