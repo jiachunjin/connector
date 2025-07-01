@@ -341,8 +341,8 @@ def get_dataloader(config):
             "webdataset",
             data_files = data_files,
             split      = "train",
-            # num_proc   = 8,
-            streaming  = True,
+            num_proc   = 8,
+            streaming  = False,
         )
 
         safe_dataset = SafeImageDataset(dataset)
