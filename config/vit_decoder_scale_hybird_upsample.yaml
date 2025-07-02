@@ -1,9 +1,9 @@
 machine: "ks" # [g3, ks]
 train:
   root:
-  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Decoder-decoder-140k"
+  resume_path_decoder:
   skipped_keys:
-  resume_path_recloss: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Loss-decoder-140k"
+  resume_path_recloss:
   global_step: 0
 
   exp_name: &exp_name "decoder"

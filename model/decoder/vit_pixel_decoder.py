@@ -97,9 +97,12 @@ class ViTPixelDecoder(nn.Module):
         for block in self.blocks:
             x = block(x, pos)
         x = self.norm2(x)
-        x = x.permute(0, 2, 1).reshape(B, self.hidden_size, self.grid_size, self.grid_size).contiguous()
-        x = self.output_proj(x)
-        x = self.conv_out(x)
+        if self.upsample:
+            x = self.output(x)
+        else:
+            x = x.permute(0, 2, 1).reshape(B, self.hidden_size, self.grid_size, self.grid_size).contiguous()
+            x = self.output_proj(x)
+            x = self.conv_out(x)
 
         return x
 
