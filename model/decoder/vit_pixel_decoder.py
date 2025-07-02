@@ -75,7 +75,7 @@ class ViTPixelDecoder(nn.Module):
         else:
             residual = self.vae_encoder(original_image) # B C_res H W
             # make residual to zero with 0.1 probability
-            residual = residual * (torch.rand(1, 1, 1, 1) < 0.1)
+            residual = residual * (torch.rand(1, 1, 1, 1, device=x.device) < 0.1)
             x = x.permute(0, 2, 1).reshape(-1, self.hidden_size, self.grid_size, self.grid_size).contiguous()
             x = self.proj_1(x) # B C H W
             x = torch.cat([x, residual], dim=1) # B C_res + C H W
