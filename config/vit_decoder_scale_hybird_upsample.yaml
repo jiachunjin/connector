@@ -8,7 +8,7 @@ train:
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
-  output_dir: "0626_decoder_scale_upsample_15M"
+  output_dir: "0626_decoder_scale_upsample_14layers"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
@@ -23,7 +23,7 @@ train:
 decoder:
   type: "vit_pixel_decoder"
   hidden_size: 1536
-  depth: 28
+  depth: 14
   num_heads: 24
   patch_size: 16
   grid_size: 24
