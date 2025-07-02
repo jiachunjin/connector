@@ -43,7 +43,7 @@ rec_loss:
   discriminator_start_iter: 5000
 
 data:
-  name: "hybrid"
+  name: "imagenet_wds"
   train_path:
   siglip_preprocess: false
   batch_size: 30
