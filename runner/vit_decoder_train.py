@@ -194,6 +194,12 @@ def main(args):
                 world_size = accelerator.state.num_processes
 
                 try:
+                    os.makedirs(os.path.join(output_dir, "rec_img"), exist_ok=True)
+                except Exception as e:
+                    print(f"创建evaluation目录失败: {e}")
+                    continue
+
+                try:
                     with torch.no_grad():
                         for i, batch in tqdm(enumerate(dataloader_val)):
                             x = batch["pixel_values"]
@@ -205,13 +211,13 @@ def main(args):
                             rec = ((rec + 1) / 2).clamp(0, 1)
 
                             rec = pth_transforms.ToPILImage()(rec.cpu().squeeze(0))
-                            rec.save(f"evaluation/rec_img/{rank}_{i}.png")
+                            rec.save(f"{output_dir}/rec_img/{rank}_{i}.png")
 
                     accelerator.wait_for_everyone()
                     if accelerator.is_main_process:
                         metrics_dict = torch_fidelity.calculate_metrics(
                             input1  = "evaluation/ori_img",
-                            input2  = "evaluation/rec_img",
+                            input2  = f"{output_dir}/rec_img",
                             cuda    = True,
                             isc     = True,
                             fid     = True,

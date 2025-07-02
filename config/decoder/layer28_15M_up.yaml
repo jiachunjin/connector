@@ -8,7 +8,7 @@ train:
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
-  output_dir: "0626_decoder_scale_hybird_data_upsample"
+  output_dir: "0702_layer28_15M_up"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
@@ -40,12 +40,12 @@ rec_loss:
   lecam_regularization_weight: 0.001
 
   discriminator_factor: 1.0
-  discriminator_start_iter: 0
+  discriminator_start_iter: 5000
 
 data:
   name: "hybrid"
   train_path:
   siglip_preprocess: false
-  batch_size: 25
+  batch_size: 30
   num_workers: 8
   img_size: 384
