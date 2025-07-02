@@ -40,7 +40,7 @@ rec_loss:
   lecam_regularization_weight: 0.001
 
   discriminator_factor: 1.0
-  discriminator_start_iter: 50
+  discriminator_start_iter: 100
 
 data:
   name: "imagenet_wds"
