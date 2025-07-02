@@ -1,0 +1,53 @@
+machine: "ks" # [g3, ks]
+train:
+  root:
+  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data_upsample/Decoder-decoder-20k"
+  skipped_keys:
+  resume_path_recloss:
+  global_step: 0
+
+  exp_name: &exp_name "decoder"
+  wandb_proj: *exp_name
+  output_dir: "0702_layer28_15M_up"
+  logging_dir: "logs"
+  mixed_precision: "bf16"
+  gradient_accumulation_steps: 1
+  report_to: "wandb"
+
+  lr: 1e-4
+  lr_disc: 2e-5
+  num_iter: 500000
+  save_every: 10000
+  val_every: 10000
+
+decoder:
+  type: "vit_pixel_decoder"
+  hidden_size: 1536
+  depth: 10
+  num_heads: 24
+  patch_size: 16
+  grid_size: 24
+  input_dim: 32
+  siglip_feature_dim: 1024
+  siglip_feature_dim_down: 32
+  upsample: false
+  vae_residual: true
+  residual_dim: 2
+
+rec_loss:
+  perceptual_loss_name: "lpips-convnext_s-1.0-0.1"
+  rec_weight: 1.0
+  perceptual_weight: 1.1
+  discriminator_weight: 0.1
+  lecam_regularization_weight: 0.001
+
+  discriminator_factor: 1.0
+  discriminator_start_iter: 5000
+
+data:
+  name: "imagenet_wds"
+  train_path:
+  siglip_preprocess: false
+  batch_size: 30
+  num_workers: 8
+  img_size: 384

@@ -144,3 +144,37 @@ class Upsample(nn.Module):
         x = torch.nn.functional.interpolate(x, scale_factor=2.0, mode="nearest")
         x = self.conv(x)
         return x
+
+
+class CNN_Encoder(nn.Module):
+    def __init__(self, output_dim):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            # 输入层: 3 -> 64
+            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            
+            # 第1次下采样: 64 -> 128, 尺寸减半
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            
+            # 第2次下采样: 128 -> 256, 尺寸减半
+            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            
+            # 第3次下采样: 256 -> 512, 尺寸减半
+            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            
+            # 第4次下采样: 512 -> 512, 尺寸减半 (总共16倍下采样)
+            nn.Conv2d(512, output_dim, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(output_dim),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        return self.encoder(x)
