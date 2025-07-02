@@ -133,7 +133,7 @@ def main(args):
                 with torch.no_grad():
                     feature = extractor(x).to(dtype)
 
-                rec = decoder(feature)
+                rec = decoder(feature, x)
                 # ---------- train autoencoder ----------
                 loss_rec, loss_rec_dict = rec_loss(x, rec, global_step, "generator")
 
