@@ -1,10 +1,10 @@
 machine: "ks" # [g3, ks]
 train:
   root:
-  resume_path_decoder:
+  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data_upsample/Decoder-decoder-10k"
   skipped_keys:
   resume_path_recloss:
-  global_step: 0
+  global_step: 10000
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
@@ -15,7 +15,7 @@ train:
   report_to: "wandb"
 
   lr: 1e-4
-  lr_disc: 1e-5
+  lr_disc: 2e-5
   num_iter: 500000
   save_every: 10000
   val_every: 10000
