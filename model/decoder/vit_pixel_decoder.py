@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from einops.layers.torch import Rearrange
-from .vit_pixel_decoder_basic import Block, precompute_freqs_cis_2d
+from .vit_pixel_decoder_basic import Block, precompute_freqs_cis_2d, Upsample
 
 
 class ViTPixelDecoder(nn.Module):
@@ -14,6 +14,7 @@ class ViTPixelDecoder(nn.Module):
         self.patch_size = config.patch_size
         self.grid_size = config.grid_size
         self.input_dim = config.input_dim
+        self.upsample = getattr(config, "upsample", False)
         if getattr(config, "siglip_feature_dim_down", None) is not None:
             self.siglip_feature_dim_down = config.siglip_feature_dim_down
             self.siglip_feature_proj = nn.Linear(config.siglip_feature_dim, config.siglip_feature_dim_down)
@@ -25,20 +26,30 @@ class ViTPixelDecoder(nn.Module):
         self.blocks = nn.ModuleList([Block(config.hidden_size, config.num_heads) for _ in range(config.depth)])
         self.norm2 = nn.LayerNorm(config.hidden_size)
 
-        self.output_proj = nn.Sequential(
-            nn.Conv2d(self.hidden_size, self.patch_size * self.patch_size * 3, 1, padding=0, bias=True),
-            Rearrange("b (p1 p2 c) h w -> b c (h p1) (w p2)", p1=self.patch_size, p2=self.patch_size)
-        )
-        # self.conv_out = nn.Conv2d(3, 3, 3, padding=1, bias=True)
-        self.conv_out = nn.Sequential(
-            nn.Conv2d(3, 64, 3, padding=1, bias=True),
-            nn.SiLU(inplace=True),
-            nn.Conv2d(64, 128, 3, padding=1, bias=True),
-            nn.SiLU(inplace=True),
-            nn.Conv2d(128, 64, 3, padding=1, bias=True),
-            nn.SiLU(inplace=True),
-            nn.Conv2d(64, 3, 3, padding=1, bias=True)
-        )
+
+        if self.upsample:
+            self.output = nn.Sequential(
+                Rearrange("b (h w) c -> b c h w", h=24, w=24),
+                Upsample(self.hidden_size, 256),
+                Upsample(256, 64),
+                Upsample(64, 16),
+                Upsample(16, 3),
+            )
+        else:
+            self.output_proj = nn.Sequential(
+                nn.Conv2d(self.hidden_size, self.patch_size * self.patch_size * 3, 1, padding=0, bias=True),
+                Rearrange("b (p1 p2 c) h w -> b c (h p1) (w p2)", p1=self.patch_size, p2=self.patch_size)
+            )
+            self.conv_out = nn.Conv2d(3, 3, 3, padding=1, bias=True)
+        # self.conv_out = nn.Sequential(
+        #     nn.Conv2d(3, 64, 3, padding=1, bias=True),
+        #     nn.SiLU(inplace=True),
+        #     nn.Conv2d(64, 128, 3, padding=1, bias=True),
+        #     nn.SiLU(inplace=True),
+        #     nn.Conv2d(128, 64, 3, padding=1, bias=True),
+        #     nn.SiLU(inplace=True),
+        #     nn.Conv2d(64, 3, 3, padding=1, bias=True)
+        # )
         self.precompute_pos = dict()
 
     def fetch_pos(self, height, width, device):
@@ -64,9 +75,12 @@ class ViTPixelDecoder(nn.Module):
         for block in self.blocks:
             x = block(x, pos)
         x = self.norm2(x)
-        x = x.permute(0, 2, 1).reshape(-1, self.hidden_size, self.grid_size, self.grid_size).contiguous()
-        x = self.output_proj(x)
-        rec = self.conv_out(x)
+        if self.upsample:
+            rec = self.output(x)
+        else:
+            x = x.permute(0, 2, 1).reshape(-1, self.hidden_size, self.grid_size, self.grid_size).contiguous()
+            x = self.output_proj(x)
+            rec = self.conv_out(x)
 
         return rec
 
@@ -88,3 +102,11 @@ class ViTPixelDecoder(nn.Module):
         x = self.conv_out(x)
 
         return x
+
+
+if __name__ == "__main__":
+    from omegaconf import OmegaConf
+    config = OmegaConf.load("/data1/jjc/codebase/kuaishou/config/vit_decoder_scale_hybird_upsample.yaml")
+    decoder = ViTPixelDecoder(config.decoder)
+    x = torch.randn(1, 576, 1024)
+    print(decoder(x).shape)
