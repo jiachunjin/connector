@@ -3,4 +3,4 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 accelerate launch \
 --main_process_port 30002 \
 --num_processes 8 \
 runner/vit_decoder_train.py \
---config config/decoder/1M_28layer_cnn_1.yaml
+--config config/decoder/15M_28layer_cnn_1.yaml

@@ -8,17 +8,17 @@ train:
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
-  output_dir: "0702_1M_28layer_cnn_1"
+  output_dir: "0702_15M_28layer_cnn_1"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
   report_to: "wandb"
 
   lr: 1e-4
-  lr_disc: 5e-5
+  lr_disc: 2e-5
   num_iter: 500000
   save_every: 10000
-  val_every: 50
+  val_every: 10000
 
 decoder:
   type: "vit_pixel_decoder"
@@ -40,10 +40,10 @@ rec_loss:
   lecam_regularization_weight: 0.001
 
   discriminator_factor: 1.0
-  discriminator_start_iter: 100
+  discriminator_start_iter: 5000
 
 data:
-  name: "imagenet_wds"
+  name: "hybrid"
   train_path:
   siglip_preprocess: false
   batch_size: 30
