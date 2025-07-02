@@ -44,8 +44,6 @@ def main(args):
     janus = MultiModalityCausalLM.from_pretrained(config.janus_path, trust_remote_code=True)
     extractor = janus.vision_model
     rec_loss = RecLoss(config.rec_loss)
-    dataloader = get_dataloader(config.data)
-    dataloader_val = get_imagenet_wds_val_dataloader(config.data)
     if config.train.resume_path_decoder is not None:
         ckpt = torch.load(config.train.resume_path_decoder, map_location="cpu", weights_only=True)
         if config.train.skipped_keys:
@@ -82,6 +80,9 @@ def main(args):
         dtype = torch.float16
     else:
         dtype = torch.float32
+
+    dataloader = get_dataloader(config.data)
+    dataloader_val = get_imagenet_wds_val_dataloader(config.data)
 
     decoder, rec_loss, dataloader, dataloader_val, optimizer, optimizer_disc = accelerator.prepare(decoder, rec_loss, dataloader, dataloader_val, optimizer, optimizer_disc)
     extractor = extractor.to(accelerator.device, dtype).eval()
