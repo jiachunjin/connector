@@ -11,9 +11,9 @@ vae_aligner:
 
 train:
   root:
-  resume_path:
+  resume_path: "/data/phd/jinjiachun/experiment/vae_aligner/0703_vae_aligner/vae_aligner-vae_aligner-1k"
   skipped_keys:
-  global_step: 0
+  global_step: 1000
 
   exp_name: &exp_name "vae_aligner"
   wandb_proj: *exp_name
@@ -30,6 +30,6 @@ train:
 data:
   name: "imagenet_wds"
   train_path:
-  batch_size: 40
+  batch_size: 128
   num_workers: 8
   img_size: 384
