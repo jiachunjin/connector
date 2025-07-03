@@ -17,12 +17,23 @@ warnings.filterwarnings("ignore", category=UserWarning, module="PIL")
 class SafeImageDataset(Dataset):
     """安全的数据集包装器，动态处理图像以避免EXIF错误"""
     
-    def __init__(self, dataset):
+    def __init__(self, dataset, batch_size=None):
         self.dataset = dataset
         self.valid_indices = set()  # 使用set来记录已验证的索引
         self.invalid_indices = set()  # 使用set来记录无效的索引
         self._is_iterable = hasattr(dataset, '__iter__') and not hasattr(dataset, '__len__')
         self._dataset_iter = None  # 用于 IterableDataset 的迭代器
+        self._batch_size = batch_size  # 直接设置_batch_size属性
+    
+    @property
+    def batch_size(self):
+        """返回batch_size属性，DeepSpeed需要这个属性"""
+        return self._batch_size
+    
+    @batch_size.setter
+    def batch_size(self, value):
+        """设置batch_size属性"""
+        self._batch_size = value
     
     def _is_valid_sample(self, sample):
         """检查样本是否有效"""
@@ -318,7 +329,7 @@ def get_dataloader(config):
         )
 
         # 使用安全的数据集包装器
-        safe_dataset = SafeImageDataset(imagenet_wds_train)
+        safe_dataset = SafeImageDataset(imagenet_wds_train, batch_size=config.batch_size)
 
         dataloader = DataLoader(
             safe_dataset,
@@ -345,7 +356,7 @@ def get_dataloader(config):
             streaming  = False,
         )
 
-        safe_dataset = SafeImageDataset(dataset)
+        safe_dataset = SafeImageDataset(dataset, batch_size=config.batch_size)
         
         # 对于 IterableDataset，使用不同的配置
         if safe_dataset._is_iterable:
@@ -378,7 +389,7 @@ def get_dataloader_test(config):
     print(f"Found {len(data_files)} tar files")
 
     ds = load_dataset("webdataset", data_files=data_files, split="train", streaming=True)
-    ds = SafeImageDataset(ds)
+    ds = SafeImageDataset(ds, batch_size=256)
     dataloader = DataLoader(ds, batch_size=256, num_workers=8, collate_fn=collate_fn_test, drop_last=True, persistent_workers=True)
 
     return dataloader
@@ -417,7 +428,7 @@ def get_imagenet_wds_val_dataloader(config):
     )
 
     # 使用安全的数据集包装器
-    safe_dataset = SafeImageDataset(imagenet_wds_val)
+    safe_dataset = SafeImageDataset(imagenet_wds_val, batch_size=1)
 
     dataloader = DataLoader(
         safe_dataset,
