@@ -1,10 +1,10 @@
 machine: "ks" # [g3, ks]
 train:
   root:
-  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0626_decoder_scale_hybird_data/Decoder-decoder-170k"
+  resume_path_decoder: "/data/phd/jinjiachun/experiment/decoder/0702_15M_28layer_cnn_1/Decoder-decoder-70k"
   skipped_keys:
   resume_path_recloss:
-  global_step: 0
+  global_step: 70000
 
   exp_name: &exp_name "decoder"
   wandb_proj: *exp_name
@@ -40,7 +40,7 @@ rec_loss:
   lecam_regularization_weight: 0.001
 
   discriminator_factor: 1.0
-  discriminator_start_iter: 5000
+  discriminator_start_iter: 80000
 
 data:
   name: "hybrid"
