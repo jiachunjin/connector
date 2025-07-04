@@ -359,32 +359,34 @@ def get_dataloader(config):
             data_files = data_files,
             split      = "train",
             num_proc   = 8,
-            streaming  = False,
+            streaming  = True,
+            # streaming  = False,
         )
 
-        safe_dataset = SafeImageDataset(dataset)
+        ds = SafeImageDataset(dataset)
+        dataloader = DataLoader(ds, batch_size=config.batch_size, num_workers=8, collate_fn=collate_fn_test, drop_last=True, persistent_workers=True)
         
-        # 对于 IterableDataset，使用不同的配置
-        if safe_dataset._is_iterable:
-            dataloader = DataLoader(
-                safe_dataset,
-                batch_size  = config.batch_size,
-                collate_fn  = collate_fn_imagenet_wds_train,
-                shuffle     = False,  # IterableDataset 不支持 shuffle
-                num_workers = 0,      # IterableDataset 通常不使用多进程
-                drop_last   = False,
-                persistent_workers = False,
-            )
-        else:
-            dataloader = DataLoader(
-                safe_dataset,
-                batch_size  = config.batch_size,
-                collate_fn  = collate_fn_imagenet_wds_train,
-                shuffle     = True,
-                num_workers = config.num_workers,
-                drop_last   = True,
-                persistent_workers = True if config.num_workers > 0 else False,
-            )
+        # # 对于 IterableDataset，使用不同的配置
+        # if safe_dataset._is_iterable:
+        #     dataloader = DataLoader(
+        #         safe_dataset,
+        #         batch_size  = config.batch_size,
+        #         collate_fn  = collate_fn_imagenet_wds_train,
+        #         shuffle     = False,  # IterableDataset 不支持 shuffle
+        #         num_workers = 0,      # IterableDataset 通常不使用多进程
+        #         drop_last   = False,
+        #         persistent_workers = False,
+        #     )
+        # else:
+        #     dataloader = DataLoader(
+        #         safe_dataset,
+        #         batch_size  = config.batch_size,
+        #         collate_fn  = collate_fn_imagenet_wds_train,
+        #         shuffle     = True,
+        #         num_workers = config.num_workers,
+        #         drop_last   = True,
+        #         persistent_workers = True if config.num_workers > 0 else False,
+        #     )
         
         return dataloader
 
