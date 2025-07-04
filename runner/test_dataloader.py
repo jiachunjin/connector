@@ -44,26 +44,36 @@ def main():
 
     def collate_fn_mine(batch):
         pixel_values = []
-        for sample in batch:
-            try:
-                img = sample["jpg"].convert("RGB")
-                width, height = img.width, img.height
-                if max(width, height) < 384:
+        try:
+            for sample in batch:
+                try:
+                    img = sample["jpg"].convert("RGB")
+                    width, height = img.width, img.height
+                    if max(width, height) < 384:
+                        continue
+                    pixel_value = imagenet_transform_train(img)
+                    pixel_values.append(pixel_value)
+                except Exception as e:
+                    print(f"Error in collate_fn_mine(): {e}")
                     continue
-                pixel_value = imagenet_transform_train(img)
-                pixel_values.append(pixel_value)
-            except Exception as e:
-                print(f"Error in collate_fn_mine(): {e}")
-                continue
+        except Exception as e:
+            print(f"处理样本时出错, collate_fn_mine: {e}")
+
+        if len(pixel_values) == 0:
+            return {"pixel_values": torch.empty(0, 3, 384, 384)}
 
         pixel_values = torch.stack(pixel_values, dim=0)
         return {"pixel_values": pixel_values}
 
-    dataloader = DataLoader(train_dataset, batch_size=100, collate_fn=collate_fn_mine)
+    dataloader = DataLoader(train_dataset, batch_size=200, collate_fn=collate_fn_mine)
 
     num_samples = 0
-    for batch in tqdm(dataloader):
+    iters = 0
+    for batch in dataloader:
+        iters += 1
         num_samples += batch["pixel_values"].shape[0]
+        if iters % 200 == 0:
+            print(accelerator.process_index, iters, num_samples)
     print(accelerator.process_index, num_samples)
 
     accelerator.end_training() # 释放资源
