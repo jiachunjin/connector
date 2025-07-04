@@ -32,10 +32,20 @@ class SafeImageDataset(Dataset):
                 # 尝试加载图像但不保留，只验证是否有效
                 img = Image.open(io.BytesIO(jpg_data))
                 img.load()
+                # 检查图像尺寸
+                width, height = img.size
+                max_dimension = max(width, height)
+                if max_dimension < 384:
+                    return False
                 img.close()
             elif isinstance(jpg_data, Image.Image):
                 # 如果是PIL图像，验证是否有效
                 img = jpg_data
+                # 检查图像尺寸
+                width, height = img.size
+                max_dimension = max(width, height)
+                if max_dimension < 384:
+                    return False
                 if hasattr(img, 'getexif'):
                     try:
                         img.getexif()
@@ -73,7 +83,7 @@ class SafeImageDataset(Dataset):
                 if self._is_valid_sample(sample):
                     yield sample
                 else:
-                    print("跳过无效样本")
+                    # print("跳过无效样本")
                     continue
             except StopIteration:
                 break
@@ -121,7 +131,7 @@ class SafeImageDataset(Dataset):
                 if self._is_valid_sample(sample):
                     return sample
                 else:
-                    print("跳过无效样本")
+                    # print("跳过无效样本")
                     continue
             except StopIteration:
                 # 重新初始化迭代器，静默地重新开始迭代
@@ -223,11 +233,18 @@ imagenet_transform_val = pth_transforms.Compose([
 ])
 
 def safe_image_transform(img, is_train=True):
-    """安全地处理图像，跳过有EXIF错误的图像"""
+    """安全地处理图像，跳过有EXIF错误的图像和尺寸过小的图像"""
     try:
         # 首先安全地加载图像
         safe_img = safe_load_image(img)
         if safe_img is None:
+            return None
+        
+        # 检查图像尺寸，过滤掉长宽最大值小于384的图像
+        width, height = safe_img.size
+        max_dimension = max(width, height)
+        if max_dimension < 384:
+            print(f"跳过尺寸过小的图像: {width}x{height} (最大值: {max_dimension} < 384)")
             return None
         
         # 转换为RGB模式
@@ -379,31 +396,58 @@ def get_dataloader_test(config):
 
     ds = load_dataset("webdataset", data_files=data_files, split="train", streaming=True)
     ds = SafeImageDataset(ds)
-    dataloader = DataLoader(ds, batch_size=256, num_workers=8, collate_fn=collate_fn_test, drop_last=True, persistent_workers=True)
+    dataloader = DataLoader(ds, batch_size=config.batch_size, num_workers=8, collate_fn=collate_fn_test, drop_last=True, persistent_workers=True)
 
     return dataloader
 
 
 def collate_fn_test(batch):
     pixel_values = []
-    labels = []
+    skipped_count = 0
     try:
         for sample in batch:
-            jpg_data = sample["jpg"]
-            pixel_value = imagenet_transform_train(jpg_data)
-            pixel_values.append(pixel_value)
-            labels.append(sample["cls"])
-    except Exception as e:
-        print("处理样本时出错", e)
+            try:
+                jpg_data = sample["jpg"]
+                if isinstance(jpg_data, bytes):
+                    try:
+                        img = Image.open(io.BytesIO(jpg_data))
+                        img.load()  # Force load to validate
+                    except Exception as e:
+                        print(f"Skipping corrupted image: {e}")
+                        skipped_count += 1
+                        continue
+                elif isinstance(jpg_data, Image.Image):
+                    img = jpg_data
+                else:
+                    print(f"Unexpected image type: {type(jpg_data)}, skipping")
+                    skipped_count += 1
+                    continue
+            except Exception as e:
+                print(f"Error processing sample: {e}")
+                skipped_count += 1
+                continue
 
+            img = safe_image_transform(img, is_train=True)
+            if img is None:
+                skipped_count += 1
+                continue
+            if img.shape[0] != 3:
+                print("skip", img.shape)
+                skipped_count += 1
+                continue
+            pixel_values.append(img)
+    except Exception as e:
+        print(f"处理样本时出错: {e}")
+        skipped_count += 1
+    
+    # 如果所有图像都被跳过，返回空批次
     if len(pixel_values) == 0:
-        print(f"批次中所有图像都被跳过")
-        return {"pixel_values": torch.empty(0, 3, 384, 384), "labels": torch.empty(0)}
+        print(f"批次中所有图像都被跳过 (跳过数量: {skipped_count})")
+        return {"pixel_values": torch.empty(0, 3, 384, 384)}
     
     pixel_values = torch.stack(pixel_values, dim=0)
-    labels = torch.tensor(labels, dtype=torch.int32)
     
-    return {"pixel_values": pixel_values, "labels": labels}
+    return {"pixel_values": pixel_values}
 
 def get_imagenet_wds_val_dataloader(config):
     data_files = glob.glob(os.path.join("/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds", "*validation*.tar"))

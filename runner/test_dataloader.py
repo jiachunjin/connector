@@ -25,10 +25,11 @@ def get_accelerator(config):
     return accelerator, output_dir
 
 def main():
-    config = OmegaConf.load("config/vit_decoder_scale_hybird_data.yaml")
+    config = OmegaConf.load("config/test_streaming_data_g4.yaml")
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
 
+    config.data.train_path = ["/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds"]
     dataloader = get_dataloader_test(config.data)
 
     dataloader = accelerator.prepare(dataloader)
@@ -43,14 +44,16 @@ def main():
     )
     
     num_samples = 0
+    iters = 0
     while True:
         for batch in dataloader:
             if batch["pixel_values"].shape[0] == 0:
                 print("跳过空批次")
                 continue
             num_samples += batch["pixel_values"].shape[0]
-            if num_samples % 100000 == 0:
-                print(f"num_samples: {num_samples}")
+            iters += 1
+            if iters % 50 == 0 and accelerator.is_local_main_process:
+                accelerator.print(f"num_samples: {num_samples} at iter {iters}")
 
             if accelerator.sync_gradients:
                 global_step += 1

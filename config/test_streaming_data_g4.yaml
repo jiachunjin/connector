@@ -1,0 +1,25 @@
+machine: "g3" # [g3, ks]
+train:
+  root:
+  global_step: 340000
+
+  exp_name: &exp_name "decoder"
+  wandb_proj: *exp_name
+  output_dir: "0626_decoder_scale"
+  logging_dir: "logs"
+  mixed_precision: "bf16"
+  gradient_accumulation_steps: 1
+  report_to: "no"
+
+  lr: 1e-4
+  lr_disc: 5e-6
+  num_iter: 500000
+  save_every: 10000
+
+data:
+  name: "imagenet_wds"
+  train_path:
+  siglip_preprocess: false
+  batch_size: 32
+  num_workers: 8
+  img_size: 384
