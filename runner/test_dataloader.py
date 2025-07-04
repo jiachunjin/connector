@@ -29,7 +29,7 @@ def main():
     config = process_path_for_different_machine(config)
     accelerator, output_dir = get_accelerator(config.train)
 
-    config.data.train_path = ["/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds"]
+    config.data.train_path = ["/data1/LargeData/BLIP3o-60k"]
     dataloader = get_dataloader_test(config.data)
 
     dataloader = accelerator.prepare(dataloader)

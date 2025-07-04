@@ -11,17 +11,17 @@ vae_aligner:
 
 train:
   root:
-  resume_path: "/data/phd/jinjiachun/experiment/vae_aligner/0703_vae_aligner/vae_aligner-vae_aligner-50k"
+  resume_path: "/data/phd/jinjiachun/experiment/vae_aligner/0703_vae_aligner_15M/vae_aligner-vae_aligner-60k"
   skipped_keys:
-  global_step: 50000
+  global_step: 60000
 
   exp_name: &exp_name "vae_aligner"
   wandb_proj: *exp_name
-  output_dir: "0704_vae_aligner_1M_gan"
+  output_dir: "0703_vae_aligner_15M"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
-  report_to: "wandb"
+  report_to: "no"
 
   lr: 1e-4
   lr_disc: 2e-5
@@ -39,8 +39,8 @@ rec_loss:
   discriminator_start_iter: 0
 
 data:
-  name: "imagenet_wds"
+  name: "hybrid"
   train_path:
-  batch_size: 25
+  batch_size: 128
   num_workers: 8
   img_size: 384
