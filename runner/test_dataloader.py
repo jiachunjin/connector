@@ -1,74 +1,72 @@
 import os
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from util.dataloader import get_dataloader, get_dataloader_test
-from omegaconf import OmegaConf
+import glob
 from accelerate import Accelerator
-from accelerate.utils import ProjectConfiguration
-import os
-from util.misc import process_path_for_different_machine
+import torch
+from torch.utils.data import DataLoader
+from torchvision import transforms as pth_transforms
+
+from datasets import load_dataset
+from PIL import Image
+from io import BytesIO
+from torchvision import transforms
+import torch
 from tqdm import tqdm
 
-def get_accelerator(config):
-    output_dir = os.path.join(config.root, config.exp_name, config.output_dir)
-    os.makedirs(output_dir, exist_ok=True)
-    logging_dir = os.path.join(output_dir, config.logging_dir)
-    project_config = ProjectConfiguration(project_dir=config.output_dir, logging_dir=logging_dir)
-    accelerator = Accelerator(
-        log_with                    = None if config.report_to == "no" else config.report_to,
-        mixed_precision             = config.mixed_precision,
-        project_config              = project_config,
-        gradient_accumulation_steps = config.gradient_accumulation_steps,
-    )
+imagenet_transform_train = pth_transforms.Compose([
+    pth_transforms.Resize(384, max_size=None),
+    pth_transforms.RandomHorizontalFlip(p=0.5),
+    pth_transforms.CenterCrop(384),
+    pth_transforms.ToTensor(),
+    pth_transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0] == 1 else x),  # 将单通道转换为三通道
+])
 
-    return accelerator, output_dir
 
 def main():
-    config = OmegaConf.load("config/test_streaming_data_g4.yaml")
-    config = process_path_for_different_machine(config)
-    accelerator, output_dir = get_accelerator(config.train)
+    data_path = "/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds"
+    accelerator = Accelerator()
+    all_data_files = glob.glob(os.path.join(data_path, "*.tar"))
+    process_data_files = all_data_files[accelerator.process_index::accelerator.num_processes]
 
-    config.data.train_path = ["/data1/LargeData/BLIP3o-60k"]
-    dataloader = get_dataloader_test(config.data)
+    imagenet_transform_train = pth_transforms.Compose([
+        pth_transforms.Resize(384, max_size=None),
+        pth_transforms.RandomHorizontalFlip(p=0.5),
+        pth_transforms.CenterCrop(384),
+        pth_transforms.ToTensor(),
+        pth_transforms.Lambda(lambda x: x.repeat(3, 1, 1) if x.shape[0] == 1 else x),  # 将单通道转换为三通道
+    ])
 
-    dataloader = accelerator.prepare(dataloader)
-
-    epoch = 0
-    global_step = 0
-    progress_bar = tqdm(
-        total   = config.train.num_iter,
-        initial = 0,
-        desc    = "Steps",
-        disable = not accelerator.is_local_main_process,
+    train_dataset = load_dataset(
+        "webdataset",
+        data_files = process_data_files,
+        split      = "train",
+        streaming  = True,
     )
-    
-    num_samples = 0
-    iters = 0
-    while True:
-        for batch in dataloader:
-            if batch["pixel_values"].shape[0] == 0:
-                print("跳过空批次")
+
+    def collate_fn_mine(batch):
+        pixel_values = []
+        for sample in batch:
+            try:
+                img = sample["jpg"].convert("RGB")
+                width, height = img.width, img.height
+                if max(width, height) < 384:
+                    continue
+                pixel_value = imagenet_transform_train(img)
+                pixel_values.append(pixel_value)
+            except Exception as e:
+                print(f"Error in collate_fn_mine(): {e}")
                 continue
-            num_samples += batch["pixel_values"].shape[0]
-            iters += 1
-            if iters % 50 == 0 and accelerator.is_local_main_process:
-                accelerator.print(f"num_samples: {num_samples} at iter {iters}")
 
-            if accelerator.sync_gradients:
-                global_step += 1
-                progress_bar.update(1)
+        pixel_values = torch.stack(pixel_values, dim=0)
+        return {"pixel_values": pixel_values}
 
-            if global_step >= config.train.num_iter:
-                training_done = True
-                break
-                
-        epoch += 1
-        accelerator.print(f"epoch {epoch}: finished")
-        accelerator.print(f"num_samples in this epoch {num_samples}")
-        accelerator.log({"epoch": epoch}, step=global_step)
-        num_samples = 0
-        # break
+    dataloader = DataLoader(train_dataset, batch_size=100, collate_fn=collate_fn_mine)
+
+    num_samples = 0
+    for batch in tqdm(dataloader):
+        num_samples += batch["pixel_values"].shape[0]
+    print(accelerator.process_index, num_samples)
+
+    accelerator.end_training() # 释放资源
 
 if __name__ == "__main__":
     main()
