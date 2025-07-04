@@ -23,6 +23,7 @@ imagenet_transform_train = pth_transforms.Compose([
 
 def main():
     data_path = "/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds"
+    # data_path = "/data1/LargeData/BLIP3o-Pretrain-JourneyDB"
     accelerator = Accelerator()
     all_data_files = glob.glob(os.path.join(data_path, "*.tar"))
     process_data_files = all_data_files[accelerator.process_index::accelerator.num_processes]
@@ -65,14 +66,14 @@ def main():
         pixel_values = torch.stack(pixel_values, dim=0)
         return {"pixel_values": pixel_values}
 
-    dataloader = DataLoader(train_dataset, batch_size=200, collate_fn=collate_fn_mine)
+    dataloader = DataLoader(train_dataset, batch_size=200, collate_fn=collate_fn_mine, num_workers=8)
 
     num_samples = 0
     iters = 0
     for batch in dataloader:
         iters += 1
         num_samples += batch["pixel_values"].shape[0]
-        if iters % 200 == 0:
+        if iters % 10 == 0:
             print(accelerator.process_index, iters, num_samples)
     print(accelerator.process_index, num_samples)
 
