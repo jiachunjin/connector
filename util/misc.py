@@ -15,8 +15,9 @@ def process_path_for_different_machine(config):
         if config.data.name == "imagenet_wds":
             config.data.train_path = "/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds"
         elif config.data.name == "hybrid":
-            config.data.train_path = ["/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds",
-                                      "/data/phd/jinjiachun/dataset/timm/imagenet-22k-wds",
+            config.data.train_path = [
+                                        # "/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds",
+            #                           "/data/phd/jinjiachun/dataset/timm/imagenet-22k-wds",
                                       "/data/phd/jinjiachun/dataset/BLIP3o/BLIP3o-Pretrain-Long-Caption",
                                       "/data/phd/jinjiachun/dataset/BLIP3o/BLIP3o-Pretrain-Short-Caption",
                                       ]
