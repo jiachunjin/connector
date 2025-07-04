@@ -14,6 +14,7 @@ from diffusers import AutoencoderKL
 from util.misc import process_path_for_different_machine, flatten_dict
 from util.dataloader import get_dataloader, get_imagenet_wds_val_dataloader
 from model.vae_aligner import get_vae_aligner
+from model.loss.rec_loss import RecLoss
 from janus.models import MultiModalityCausalLM
 
 def get_accelerator(config):
@@ -39,7 +40,12 @@ def main(args):
     accelerator.print(pprint.pformat(OmegaConf.to_container(config, resolve=True), indent=2, width=120).strip('{}'))
 
     vae_aligner = get_vae_aligner(config.vae_aligner)
+    params_to_learn = list(vae_aligner.parameters())
+    rec_loss = RecLoss(config.rec_loss)
+    vae_aligner.rec_loss = rec_loss
+    disc_params = list(vae_aligner.rec_loss.parameters())
     vae = AutoencoderKL.from_pretrained(config.vae_path)
+    vae.requires_grad_(False)
     siglip = MultiModalityCausalLM.from_pretrained(config.janus_path, trust_remote_code=True).vision_model
 
     if config.train.resume_path is not None:
@@ -50,11 +56,17 @@ def main(args):
         accelerator.print(f"Missed {m} modules and {u} unmatch modules")
 
     global_step = config.train.global_step if config.train.global_step is not None else 0
-    params_to_learn = list(vae_aligner.parameters())
 
     optimizer = torch.optim.AdamW(
         params_to_learn,
         lr           = config.train.lr,
+        betas        = (0.9, 0.95),
+        weight_decay = 5e-2,
+        eps          = 1e-8,
+    )
+    optimizer_disc = torch.optim.AdamW(
+        disc_params,
+        lr           = config.train.lr_disc,
         betas        = (0.9, 0.95),
         weight_decay = 5e-2,
         eps          = 1e-8,
@@ -70,9 +82,9 @@ def main(args):
     dataloader = get_dataloader(config.data)
     # dataloader_val = get_imagenet_wds_val_dataloader(config.data)
 
-    vae_aligner, dataloader, optimizer = accelerator.prepare(vae_aligner, dataloader, optimizer)
+    vae_aligner, dataloader, optimizer, optimizer_disc = accelerator.prepare(vae_aligner, dataloader, optimizer, optimizer_disc)
     siglip = siglip.to(accelerator.device, dtype).eval()
-    vae = vae.to(accelerator.device, dtype)
+    vae = vae.to(accelerator.device, dtype).eval()
     vae_aligner = vae_aligner.to(dtype)
 
     config.device_count = accelerator.num_processes
@@ -112,25 +124,39 @@ def main(args):
 
                 with torch.no_grad():
                     x_siglip = siglip(x).to(dtype)
-                    vae_latent = vae.encode(x).latent_dist.sample()
+                    # vae_latent = vae.encode(x).latent_dist.sample()
 
 
                 rec_latent = vae_aligner(x_siglip).to(dtype)
+                rec = vae.decode(rec_latent).sample
 
-                loss_mse = torch.nn.functional.mse_loss(rec_latent, vae_latent)
+                # loss_mse = torch.nn.functional.mse_loss(rec_latent, vae_latent)
+                loss_rec, loss_rec_dict = vae_aligner.rec_loss(x, rec, global_step, "generator")
 
                 optimizer.zero_grad()
-                accelerator.backward(loss_mse)
+                accelerator.backward(loss_rec)
                 if accelerator.sync_gradients:
                     accelerator.clip_grad_norm_(params_to_learn, 1.0)
                 optimizer.step()
+
+                # ---------- train discriminator ----------
+                loss_disc, loss_disc_dict = vae_aligner.rec_loss(x, rec, global_step, "discriminator")
+
+                optimizer_disc.zero_grad()
+                accelerator.backward(loss_disc)
+                if accelerator.sync_gradients:
+                    accelerator.clip_grad_norm_(disc_params, 1.0)
+                optimizer_disc.step()
 
                 if accelerator.sync_gradients:
                     global_step += 1
                     progress_bar.update(1)
 
                     logs = dict(
-                        loss_mse  = accelerator.gather(loss_mse.detach()).mean().item(),
+                        loss_rec  = accelerator.gather(loss_rec.detach()).mean().item(),
+                        loss_disc = accelerator.gather(loss_disc.detach()).mean().item(),
+                        **loss_rec_dict,
+                        **loss_disc_dict,
                     )
                     accelerator.log(logs, step=global_step)
                     progress_bar.set_postfix(**logs)

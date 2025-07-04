@@ -11,25 +11,36 @@ vae_aligner:
 
 train:
   root:
-  resume_path: "/data/phd/jinjiachun/experiment/vae_aligner/0703_vae_aligner/vae_aligner-vae_aligner-10k"
+  resume_path: "/data/phd/jinjiachun/experiment/vae_aligner/0703_vae_aligner/vae_aligner-vae_aligner-50k"
   skipped_keys:
-  global_step: 10000
+  global_step: 50000
 
   exp_name: &exp_name "vae_aligner"
   wandb_proj: *exp_name
-  output_dir: "0703_vae_aligner_15M"
+  output_dir: "0704_vae_aligner_1M_gan"
   logging_dir: "logs"
   mixed_precision: "bf16"
   gradient_accumulation_steps: 1
   report_to: "wandb"
 
   lr: 1e-4
+  lr_disc: 2e-5
   num_iter: 500000
   save_every: 10000
 
+rec_loss:
+  perceptual_loss_name: "lpips-convnext_s-1.0-0.1"
+  rec_weight: 1.0
+  perceptual_weight: 1.1
+  discriminator_weight: 0.1
+  lecam_regularization_weight: 0.001
+
+  discriminator_factor: 1.0
+  discriminator_start_iter: 0
+
 data:
-  name: "hybird"
+  name: "imagenet_wds"
   train_path:
-  batch_size: 128
+  batch_size: 25
   num_workers: 8
   img_size: 384
