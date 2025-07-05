@@ -11,9 +11,9 @@ vae_aligner:
 
 train:
   root:
-  resume_path: "/data/phd/jinjiachun/experiment/vae_aligner/0703_vae_aligner_15M/vae_aligner-vae_aligner-60k"
+  resume_path: "/data/phd/jinjiachun/experiment/vae_aligner/0703_vae_aligner_15M/vae_aligner-vae_aligner-110k"
   skipped_keys:
-  global_step: 60000
+  global_step: 110000
 
   exp_name: &exp_name "vae_aligner"
   wandb_proj: *exp_name
