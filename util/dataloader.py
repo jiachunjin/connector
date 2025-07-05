@@ -1,5 +1,6 @@
 import torch
 import glob
+import webdataset as wds
 from datasets import load_dataset
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 import torchvision.transforms as pth_transforms
@@ -474,5 +475,36 @@ def get_imagenet_wds_val_dataloader(config):
         drop_last   = False,
         persistent_workers = True if config.num_workers > 0 else False,  # 保持worker进程以避免重复初始化
     )
+
+    return dataloader
+
+def get_wds_dataloader(config):
+    data_paths = [
+        "/data/phd/jinjiachun/dataset/timm/imagenet-1k-wds",
+        "/data/phd/jinjiachun/dataset/timm/imagenet-22k-wds",
+        "/data/phd/jinjiachun/dataset/BLIP3o/BLIP3o-Pretrain-Long-Caption",
+        "/data/phd/jinjiachun/dataset/BLIP3o/BLIP3o-Pretrain-Short-Caption",
+    ]
+
+    # 收集所有tar文件
+    all_tar_files = []
+    for data_path in data_paths:
+        if os.path.exists(data_path):
+            tar_files = glob.glob(os.path.join(data_path, "*.tar"))
+            all_tar_files.extend(tar_files)
+
+    # 将tar文件路径转换为WebDataset格式的URL列表
+    tar_urls = [f"file://{tar_file}" for tar_file in all_tar_files]
+
+    # 修复WebDataset配置：当resampled=True时，shardshuffle应该为False
+    dataset = (
+        wds.WebDataset(tar_urls, resampled=True, shardshuffle=False, nodesplitter=None)
+        .shuffle(100000) # 1/10 of the training set
+        .decode("pil")
+        .to_tuple("jpg")
+        .map_tuple(imagenet_transform_train)
+    )
+
+    dataloader = DataLoader(dataset, batch_size=config.batch_size, num_workers=8, pin_memory=False)
 
     return dataloader

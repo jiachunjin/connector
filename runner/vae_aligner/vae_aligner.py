@@ -12,7 +12,7 @@ from tqdm import tqdm
 from diffusers import AutoencoderKL
 
 from util.misc import process_path_for_different_machine, flatten_dict
-from util.dataloader import get_dataloader, get_imagenet_wds_val_dataloader
+from util.dataloader import get_dataloader, get_imagenet_wds_val_dataloader, get_wds_dataloader
 from model.vae_aligner import get_vae_aligner
 # from model.loss.rec_loss import RecLoss
 from janus.models import MultiModalityCausalLM
@@ -79,8 +79,9 @@ def main(args):
     else:
         dtype = torch.float32
 
-    dataloader = get_dataloader(config.data)
+    # dataloader = get_dataloader(config.data)
     # dataloader_val = get_imagenet_wds_val_dataloader(config.data)
+    dataloader = get_wds_dataloader(config.data)
 
     vae_aligner, dataloader, optimizer = accelerator.prepare(vae_aligner, dataloader, optimizer)
     siglip = siglip.to(accelerator.device, dtype).eval()
